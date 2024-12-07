@@ -5,6 +5,7 @@ from datetime import datetime
 from torch import nn
 import torch
 import os
+import pathlib
 
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import sparse_rail_generator
@@ -97,7 +98,7 @@ if __name__ == '__main__':
     }
 
     ### ENVIRONMENT ###
-    pickle_train_env_path = f"./envs_config/train_envs/{CONFIG['test_id']}/{CONFIG['env_id']}.pkl"
+    pickle_train_env_path = pathlib.Path(__file__).parent.absolute() / f"envs_config/train_envs/{CONFIG['test_id']}/{CONFIG['env_id']}.pkl"
     
     # generate the level if the pickle file does not exist
     if not os.path.exists(pickle_train_env_path):
