@@ -1,0 +1,9 @@
+flatland_rl==4.0.3
+ipython==8.12.3
+matplotlib==3.6.3
+numpy==1.24.4
+pandas==2.0.3
+pettingzoo==1.24.3
+torch==2.5.0
+tqdm==4.66.6
+yappi==1.6.10

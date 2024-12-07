@@ -7,21 +7,6 @@ import torch
 
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import sparse_rail_generator
-from flatland.envs.persistence import RailEnvPersister
-# from flatland.contrib.interface import flatland_env  
-# substituted with the following
-from flatland.envs.observations import TreeObsForRailEnv
-from flatland.envs.predictions import ShortestPathPredictorForRailEnv
-import supersuit as ss
-from stable_baselines3.common import env_checker
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.ppo import MlpPolicy
-# from pettingzoo.utils.conversions import aec_to_parallel
-from flatland.core.grid.grid4_utils import get_new_position
-from flatland.envs.rail_env_shortest_paths import get_valid_move_actions_
-from flatland.envs.fast_methods import fast_count_nonzero
-from flatland.envs.step_utils.states import TrainState
-from flatland.envs.rail_env import RailEnvActions
 from flatland.envs.malfunction_generators import ParamMalfunctionGen, MalfunctionParameters
 from flatland.envs.rail_generators import sparse_rail_generator
 from flatland.envs.line_generators import sparse_line_generator
@@ -103,6 +88,7 @@ if __name__ == '__main__':
         "num_iterations": NUM_ITERATIONS,
 
         # Network architecture
+        "model": "RailTransformer",  # "RailTransformer" or "MLP"   # TODO: implement MLP baseline or remove
         "state_size": env.obs_builder.observation_dim,
         "action_size": 4,
         "hidden_size": 256,
@@ -138,7 +124,7 @@ if __name__ == '__main__':
 
     ### WANDB ###
     if CONFIG["wandb"]:
-        wandb.login()
+        wandb.login(key="14a7d0e7554bbddd13ca1a8d45472f7a95e73ca4")
         wandb.init(project="flatland-marl", name=f"{CONFIG['env_size']}", config=CONFIG, sync_tensorboard=True)
         config = wandb.config
 
