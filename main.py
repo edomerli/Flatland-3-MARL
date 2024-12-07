@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from datetime import datetime
 from torch import nn
 import torch
+import os
 
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import sparse_rail_generator
@@ -17,6 +18,7 @@ from utils.seeding import seed_everything
 from utils.persister import load_env_from_pickle
 from utils.logger import WandbLogger
 from utils.recorder import RecorderWrapper
+from utils.levels_generator import generate_levels
 from network.rail_tranformer import RailTranformer
 # from reinforcement_learning.ppo import PPO
 from reinforcement_learning.actor_critic import ActorCritic
@@ -33,38 +35,9 @@ import yappi
 
 if __name__ == '__main__':
 
-    ### ENVIRONMENT ###
-    DEMO = True
-
-    if DEMO:
-        malfunction_parameters = MalfunctionParameters(
-            malfunction_rate=1/10000,
-            min_duration=20,
-            max_duration=50,
-        )
-
-        demo_env_args = {
-            "width": 40,
-            "height": 40,
-            "rail_generator": sparse_rail_generator(
-                max_num_cities=2,
-                grid_mode=False,
-                max_rails_between_cities=2,
-                max_rail_pairs_in_city=2,
-            ),
-            "line_generator": sparse_line_generator({1.0: 1.0, 0.5: 0.0, 0.33: 0.0, 0.25: 0.0}),
-            "number_of_agents": 5,
-            'malfunction_generator': ParamMalfunctionGen(malfunction_parameters),
-            "random_seed": 6
-        }
-        env = RailEnv(**demo_env_args)
-    else:
-        env = load_env_from_pickle("./envs_config/train_envs/small_envs_50/Level_1.pkl")
-
     ### OBSERVATION ###
     TREE_OBS_DEPTH = 3  # TODO: test with higher
-    env.obs_builder = FastTreeObs(max_depth=TREE_OBS_DEPTH)
-    env.obs_builder.set_env(env)
+    obs_builder = FastTreeObs(max_depth=TREE_OBS_DEPTH)
 
     ### CONFIGURATION ###
     TOT_TIMESTEPS = 2**18    #2**21  # approx 2M
@@ -76,8 +49,9 @@ if __name__ == '__main__':
         "env_size": "small",    # must be one of {"small", "medium", "large", "huge"}
         # TODO: connect env_size to env pickle file and to loading the respective pretrained model! All automatically
         # i.e. without having to specify the filenames etc.
-        "seed": env.random_seed,
         "skip_no_choice_steps": False,  # TODO: reintroduci
+        "test_id": "demo_env",
+        "env_id": "Level_1",
 
         # Observation
         "tree_obs_depth": TREE_OBS_DEPTH,
@@ -89,7 +63,7 @@ if __name__ == '__main__':
 
         # Network architecture
         "model": "RailTransformer",  # "RailTransformer" or "MLP"   # TODO: implement MLP baseline or remove
-        "state_size": env.obs_builder.observation_dim,
+        "state_size": obs_builder.observation_dim,
         "action_size": 4,
         "hidden_size": 256,
         "num_layers": 4,
@@ -121,6 +95,22 @@ if __name__ == '__main__':
         # Yappi profiling
         "profiling": False,
     }
+
+    ### ENVIRONMENT ###
+    pickle_train_env_path = f"./envs_config/train_envs/{CONFIG['test_id']}/{CONFIG['env_id']}.pkl"
+    
+    # generate the level if the pickle file does not exist
+    if not os.path.exists(pickle_train_env_path):
+        generate_levels("train", CONFIG["test_id"], CONFIG["env_id"])
+
+    env = load_env_from_pickle(pickle_train_env_path)
+
+    env.obs_builder = obs_builder
+    env.obs_builder.set_env(env)
+
+    # set random seed in the config
+    CONFIG["seed"] = env.random_seed
+
 
     ### WANDB ###
     if CONFIG["wandb"]:
