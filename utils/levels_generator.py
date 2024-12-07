@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from tqdm import tqdm
+import pathlib
 
 from flatland.envs.line_generators import sparse_line_generator
 from flatland.envs.malfunction_generators import MalfunctionParameters, ParamMalfunctionGen
@@ -38,10 +39,10 @@ def generate_levels(mode, test_id="all", env_id="all"):
     """
     ### CONFIG ###
     if mode == "test":
-        PATH = "./envs_config/test_envs" 
+        PATH = pathlib.Path(__file__).parent.parent.absolute() / "envs_config/test_envs"
         save_function = lambda env, path: RailEnvPersister.save(env, path, save_distance_maps=True)
     elif mode == "train":
-        PATH = "./envs_config/train_envs"
+        PATH = pathlib.Path(__file__).parent.parent.absolute() / "envs_config/train_envs"
         save_function = lambda env, path: save_env_to_pickle(env, path)
     else:
         raise ValueError("Invalid mode")
@@ -50,7 +51,7 @@ def generate_levels(mode, test_id="all", env_id="all"):
     # If you want to generate all environments, set test_id and env_id to "all".
 
     ### GENERATORION ###
-    parameters_flatland = pd.read_csv(PATH + "/metadata.csv", index_col=0)
+    parameters_flatland = pd.read_csv(PATH / "metadata.csv", index_col=0)
     if test_id != "all":
         parameters_flatland = parameters_flatland[parameters_flatland["test_id"] == test_id]
     if env_id != "all":
