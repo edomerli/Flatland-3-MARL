@@ -126,7 +126,7 @@ class PPO:
             
                 # reset the environment
                 next_obs_dict, initial_info_dict = self.env.reset()
-                next_obs = dict_to_tensor(next_obs_dict)
+                next_obs = dict_to_tensor(next_obs_dict).to(self.config.device)
                 next_done = False
 
         # GAE
