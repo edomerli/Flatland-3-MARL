@@ -143,8 +143,6 @@ class PPO:
 
         for t in reversed(range(self.iterations_timesteps)):
             if t == self.iterations_timesteps - 1:
-                print(self.actor_critic.get_device())
-                print(next_obs.get_device())
                 next_value = self.actor_critic.value(next_obs.unsqueeze(0)) # TODO: potrei usare self.actor_critic.value() per non sprecare computazione con l'actor?
                 next_nonterminal = 1 - next_done
             else:
