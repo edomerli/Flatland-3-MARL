@@ -47,12 +47,9 @@ if __name__ == '__main__':
 
     CONFIG = {
         # Environment
-        "env_size": "small",    # must be one of {"small", "medium", "large", "huge"}
-        # TODO: connect env_size to env pickle file and to loading the respective pretrained model! All automatically
-        # i.e. without having to specify the filenames etc.
-        "skip_no_choice_steps": False,  # TODO: reintroduci
         "test_id": "demo_env",
         "env_id": "Level_1",
+        "skip_no_choice_steps": False,  # TODO: reintroduci
 
         # Observation
         "tree_obs_depth": TREE_OBS_DEPTH,
@@ -112,11 +109,13 @@ if __name__ == '__main__':
     # set random seed in the config
     CONFIG["seed"] = env.random_seed
 
+    env_size = CONFIG["test_id"].split("_")[0]
+
 
     ### WANDB ###
     if CONFIG["wandb"]:
         wandb.login(key="14a7d0e7554bbddd13ca1a8d45472f7a95e73ca4")
-        wandb.init(project="flatland-marl", name=f"{CONFIG['env_size']}", config=CONFIG, sync_tensorboard=True)
+        wandb.init(project="flatland-marl", name=f"{env_size}_{env.number_of_agents}", config=CONFIG, sync_tensorboard=True)
         config = wandb.config
 
         wandb.define_metric("play/step")
@@ -194,7 +193,7 @@ if __name__ == '__main__':
     ppo.learn()
 
     now = datetime.today().strftime('%Y%m%d-%H%M')
-    ppo.save(f"{now}_policy_flatland_{config.env_size}_{config.tot_timesteps}_{config.seed}.pt")
+    ppo.save(f"{now}_policy_flatland_{env_size}_{env.number_of_agents}_{config.tot_timesteps}_{config.seed}.pt")
 
     # model = PPO(MlpPolicy, 
     #             env, 
