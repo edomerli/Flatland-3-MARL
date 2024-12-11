@@ -231,7 +231,7 @@ class PPO:
 
             wandb.log({"train/kl_div": approx_kl.item(), "train/batch": global_vars.global_batch})
             if approx_kl > self.config.kl_limit:
-                print(f"Early stopping at epoch {epoch} due to KL divergence {round(approx_kl, 4)} > {self.config.kl_limit}")
+                print(f"Early stopping at epoch {epoch} due to KL divergence {round(approx_kl.item(), 4)} > {self.config.kl_limit}")
                 break
         
 
