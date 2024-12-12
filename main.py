@@ -34,15 +34,14 @@ import yappi
 
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     ### OBSERVATION ###
     TREE_OBS_DEPTH = 3  # TODO: test with higher
     obs_builder = FastTreeObs(max_depth=TREE_OBS_DEPTH)
 
     ### CONFIGURATION ###
-    TOT_TIMESTEPS = 2**18    #2**21  # approx 2M
-    ITER_TIMESTEPS = 2**8    #2**10  # approx 1K
+    TOT_TIMESTEPS = 2**22    # approx 4M
+    ITER_TIMESTEPS = 2**11    # approx 2K
     NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
 
     CONFIG = {
@@ -67,8 +66,8 @@ if __name__ == '__main__':
         "num_layers": 4,
 
         # Training params
-        "epochs": 3,
-        "batch_size": 128,  # 2**7
+        "epochs": 5,    # TODO: try 3, 5 and 10
+        "batch_size": 2**6,
         "learning_rate": 2.5e-4,
         "kl_limit": 0.02,
         "adam_eps": 1e-5,
@@ -95,6 +94,9 @@ if __name__ == '__main__':
     }
 
     ### ENVIRONMENT ###
+    # for the notebook version:
+    # pickle_train_env_path = f"./envs_config/train_envs/{CONFIG['test_id']}/{CONFIG['env_id']}.pkl"
+    # for the script version:
     pickle_train_env_path = pathlib.Path(__file__).parent.absolute() / f"envs_config/train_envs/{CONFIG['test_id']}/{CONFIG['env_id']}.pkl"
     
     # generate the level if the pickle file does not exist
@@ -194,29 +196,11 @@ if __name__ == '__main__':
 
     now = datetime.today().strftime('%Y%m%d-%H%M')
     ppo.save(f"{now}_policy_flatland_{env_size}_{env.number_of_agents}_{config.tot_timesteps}_{config.seed}.pt")
-
-    # model = PPO(MlpPolicy, 
-    #             env, 
-    #             learning_rate=config.lr_policy_network, 
-    #             n_steps=config.iteration_timesteps,
-    #             batch_size=config.batch_size, 
-    #             n_epochs=config.epochs, 
-    #             gamma=config.gamma, 
-    #             gae_lambda=config.lambda_,
-    #             clip_range=config.eps_clip, 
-    #             normalize_advantage=True, 
-    #             ent_coef=config.entropy_bonus,
-    #             # max_grad_norm=0.9, # default=0.5
-    #             verbose=3, 
-    #             seed=config.seed)
     
-    # logger = WandbLogger()
-    # model.set_logger(logger=logger)
 
     # TODO: try wandb code below, I think for histograms
     # wandb.watch(model.policy.action_net, log='all', log_freq = 1)
     # wandb.watch(model.policy.value_net, log='all', log_freq = 1)
-    # collect rollouts AND train on them
 
     # validate performance
     # TODO: vedi Procgen's test/eval function

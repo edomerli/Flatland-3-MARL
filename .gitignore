@@ -4,5 +4,6 @@ __pycache__/
 wandb/
 envs_config/
 
-yappi*
+yappi_func_stats.txt
+yappi_thread_stats.txt
 flatland.zip
