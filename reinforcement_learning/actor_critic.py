@@ -31,7 +31,7 @@ class ActorCritic:
 
         return value
 
-    def action_and_value(self, state, action=None):
+    def action_and_value(self, state, action=None, agents_mask=None):
         dist = self.policy_net(state)
         if action is None:
             action = dist.sample()

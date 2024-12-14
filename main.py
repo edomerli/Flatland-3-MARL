@@ -21,6 +21,7 @@ from utils.logger import WandbLogger
 from utils.recorder import RecorderWrapper
 from utils.levels_generator import generate_levels
 from network.rail_tranformer import RailTranformer
+from network.mlp import MLP
 # from reinforcement_learning.ppo import PPO
 from reinforcement_learning.actor_critic import ActorCritic
 from env_wrapper.railenv_wrapper import RailEnvWrapper
@@ -48,7 +49,7 @@ if __name__ == "__main__":
         # Environment
         "test_id": "demo_env",
         "env_id": "Level_1",
-        "skip_no_choice_steps": False,  # TODO: reintroduci
+        "skip_no_choice_steps": True,  # TODO: reintroduci
 
         # Observation
         "tree_obs_depth": TREE_OBS_DEPTH,
@@ -164,21 +165,8 @@ if __name__ == "__main__":
         value_network = RailTranformer(config.state_size, 1, config.hidden_size, config.num_layers, activation=nn.Tanh)
         # TODO: voglio provare sia con Tanh che con ReLU, sono troppo curiosooo
     elif config.model == "MLP":
-        policy_network = nn.Sequential(
-            nn.Linear(config.state_size, config.hidden_size),
-            nn.ReLU(),
-            nn.Linear(config.hidden_size, config.hidden_size),
-            nn.ReLU(),
-            nn.Linear(config.hidden_size, config.action_size),
-            nn.Tanh()
-        )
-        value_network = nn.Sequential(
-            nn.Linear(config.state_size, config.hidden_size),
-            nn.ReLU(),
-            nn.Linear(config.hidden_size, config.hidden_size),
-            nn.ReLU(),
-            nn.Linear(config.hidden_size, 1)
-        )
+        policy_network = MLP(config.state_size, config.action_size, config.hidden_size, 3, activation=nn.Tanh)
+        value_network = MLP(config.state_size, 1, config.hidden_size, 3, activation=nn.Tanh)
 
     ### MODEL ###
     actor_critic = ActorCritic(policy_network, value_network, config)

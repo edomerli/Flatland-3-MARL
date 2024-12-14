@@ -30,13 +30,15 @@ class PPO:
                 yappi.start()
 
             # next_obs and next_done are returned such that they can be used as the initial state for the next iteration
-            observations, actions, log_probs, value_targets, advantages, next_obs, next_done = self._collect_trajectories(next_obs, next_done, initial_info_dict)
+            observations, actions, log_probs, value_targets, advantages, action_required, next_obs, next_done = self._collect_trajectories(next_obs, next_done, initial_info_dict)
 
-            self._train(observations, actions, log_probs, value_targets, advantages)
+            self._train(observations, actions, log_probs, value_targets, advantages, action_required)
 
             if self.config.profiling:
                 with open("yappi_func_stats.txt", 'w') as f:
-                    yappi.get_func_stats().print_all(f)   #.sort(sort_type="tsub").print_all(f)
+                    yappi.get_func_stats().print_all(f)
+                with open("yappi_func_stats_tsub_sorted.txt", 'w') as f:
+                    yappi.get_func_stats().sort(sort_type="tsub").print_all(f)
                 with open("yappi_threads_stats.txt", 'w') as f:
                     yappi.get_thread_stats().print_all(f)
 
@@ -48,15 +50,14 @@ class PPO:
         n_agents = self.env.get_num_agents()
 
         observations = torch.zeros(self.iterations_timesteps, n_agents, self.env.obs_builder.observation_dim).to(self.config.device)
-        actions = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)   # TODO: questo deve essere un one-hot vector?
+        actions = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)   # TODO: questo deve essere un one-hot vector? LO E' GIA'? Double check, important
         log_probs = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)
-        # rewards = torch.zeros(self.iterations_timesteps)
         custom_rewards = torch.zeros(self.iterations_timesteps).to(self.config.device)
-        # VERSION 1.0:
-        # - done = 1 se l'intero env è done, i.e. tutti gli agenti sono done / alcuni sono done e altri sono in deadlock
         dones = torch.zeros(self.iterations_timesteps).to(self.config.device)          # TODO: devo probabilmente tenere anche un vettore di quali siano gli agenti già terminati che sono da "mascherare", oppure posso estendere dones ad avere una dimensione agente
         values = torch.zeros(self.iterations_timesteps).to(self.config.device)
         advantages = torch.zeros(self.iterations_timesteps).to(self.config.device)
+
+        action_required = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)
 
         old_info = initial_info_dict
 
@@ -75,15 +76,16 @@ class PPO:
 
             observations[step] = next_obs
             dones[step] = next_done
+            action_required[step] = torch.tensor(list(old_info["action_required"].values())).to(self.config.device)
 
             with torch.no_grad():
-                action, log_prob, _, value = self.actor_critic.action_and_value(next_obs.unsqueeze(0))
+                action, log_prob, _, value = self.actor_critic.action_and_value(next_obs.unsqueeze(0), action_required[step].unsqueeze(0))
                 value = value.item()
                 action = action.squeeze()
                 log_prob = log_prob.squeeze()
             
-            actions[step] = action
-            log_probs[step] = log_prob
+            actions[step] = action * action_required[step]  # mask the action with action_required, 0 = RailEnvActions.DO_NOTHING
+            log_probs[step] = log_prob * action_required[step]  # mask the log_prob with action_required
             values[step] = value
 
             # TODO: remove
@@ -91,7 +93,7 @@ class PPO:
             # print(f"Log_prob: {log_prob}, log_prob shape: {log_prob.shape}")
             # print(f"Value: {value}")
 
-            # print(f"====================={step}=======================")
+            # print(f"=====================Step: {step}=======================")
             # print(f"Env timestep before step: {self.env._elapsed_steps}")
             # print(f"Old info: {old_info}")
             next_obs, reward, done, info = self.env.step(tensor_to_dict(action)) #TODO: lui usa (action.cpu().numpy())
@@ -133,7 +135,7 @@ class PPO:
         advantages, value_targets = self._compute_gae(next_obs, next_done, custom_rewards, dones, values)
 
         # next_obs and next_done are returned because they will be used asthe initial state for the next iteration
-        return observations, actions, log_probs, value_targets, advantages, next_obs, next_done
+        return observations, actions, log_probs, value_targets, advantages, action_required, next_obs, next_done
 
 
     @torch.no_grad()
@@ -143,8 +145,8 @@ class PPO:
 
         for t in reversed(range(self.iterations_timesteps)):
             if t == self.iterations_timesteps - 1:
-                next_obs = next_obs.to(self.config.device)  # TODO: l'ho aggiunto per vedere se risolve il problema di device mismatch su kaggle, se non va rimuovi
-                next_value = self.actor_critic.value(next_obs.unsqueeze(0)) # TODO: potrei usare self.actor_critic.value() per non sprecare computazione con l'actor?
+                next_obs = next_obs.to(self.config.device)
+                next_value = self.actor_critic.value(next_obs.unsqueeze(0))
                 next_nonterminal = 1 - next_done
             else:
                 next_value = values[t+1]
@@ -157,7 +159,7 @@ class PPO:
 
         return advantages, value_targets
 
-    def _train(self, observations, actions, log_probs, value_targets, advantages):
+    def _train(self, observations, actions, log_probs, value_targets, advantages, actions_required):
         # TODO remove
         # print(f"Observations: {observations.shape} \n {observations[0]}")
         # print(f"Actions: {actions.shape} \n {actions[0]}")
@@ -179,10 +181,16 @@ class PPO:
                 batch_log_probs = log_probs[batch_indices]
                 batch_value_targets = value_targets[batch_indices]
                 batch_advantages = advantages[batch_indices]
+                batch_actions_required = actions_required[batch_indices]
 
                 _, newlogprob, entropy, newvalues = self.actor_critic.action_and_value(batch_observations, batch_actions)
                 logratio = newlogprob - batch_log_probs
                 ratio = torch.exp(logratio)
+
+                # mask the agents that are not required to act
+                ratio = ratio * batch_actions_required
+                logratio = logratio * batch_actions_required
+                entropy = entropy * batch_actions_required
 
                 # compute approx_kl (http://joschu.net/blog/kl-approx.html)
                 with torch.no_grad():
