@@ -3,12 +3,46 @@ from typing import Dict
 from flatland.envs.agent_utils import TrainState
 from flatland.envs.rail_env import RailEnvActions
 from flatland.envs.rail_env import RailEnv
+from flatland.envs.agent_utils import EnvAgent
+from flatland.core.grid.grid4_utils import get_new_position
+from flatland.envs.fast_methods import fast_count_nonzero
 
 from utils.conversions import dict_to_tensor
+
+def find_all_cells_where_agent_can_choose(rail_env: RailEnv):
+    switches = []
+    switches_neighbors = []
+    directions = list(range(4))
+    for h in range(rail_env.height):
+        for w in range(rail_env.width):
+            pos = (w, h)
+            is_switch = False
+            # Check for switch: if there is more than one outgoing transition
+            for orientation in directions:
+                possible_transitions = rail_env.rail.get_transitions(*pos, orientation)
+                num_transitions = fast_count_nonzero(possible_transitions)
+                if num_transitions > 1:
+                    switches.append(pos)
+                    is_switch = True
+                    break
+            if is_switch:
+                # Add all neighbouring rails, if pos is a switch
+                for orientation in directions:
+                    possible_transitions = rail_env.rail.get_transitions(*pos, orientation)
+                    for movement in directions:
+                        if possible_transitions[movement]:
+                            switches_neighbors.append(get_new_position(pos, movement))
+
+    # decision cells are switches and their neighbors!
+    decision_cells = switches + switches_neighbors  
+    # return tuple(map(set, (switches, switches_neighbors, decision_cells)))    # TODO: remove
+    return set(decision_cells)
 
 class RailEnvWrapper:
     def __init__(self, env: RailEnv):
         self.env = env
+
+        self._decision_cells = None
 
         # TODO: remove?
         # self.departed_agents = set()
@@ -46,10 +80,32 @@ class RailEnvWrapper:
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
+        self._decision_cells = find_all_cells_where_agent_can_choose(self.env)
+
         # cycle until at least one agent is ready to depart
         while not any(info["action_required"].values()):
             obs, _, _, info = self.env.step({})  # empty dict === RailEnv will choose DO_NOTHING action by default
         return obs, info
+    
+    def step(self, action_dict: Dict[int, RailEnvActions]):
+        obs, reward, done, info = self.env.step(action_dict)
+        
+        # override action_required info
+        for agent_id in obs.keys():
+            agent = self.env.agents[agent_id]
+            # agents that require action are those that 1) are entering their cell and 2) are either (i) moving and are on a decision cell or (ii) are ready to depart
+            info["action_required"][agent_id] = info["action_required"][agent_id] \
+                and (((TrainState.MOVING <= agent.state <= TrainState.STOPPED) and self._on_decision_cell(agent)) \
+                        or agent.state == TrainState.READY_TO_DEPART)
+            
+        return obs, reward, done, info
+
+    def _on_decision_cell(self, agent: EnvAgent):
+        return (agent.position == agent.initial_position and agent.state == TrainState.READY_TO_DEPART) \
+               or agent.position in self._decision_cells
+            #    or agent.position is None  # removed because I don't think an agent that is done should be considered as being on a decision cell! TODO: remove
+
+
 
     def __getattr__(self, name):
         return getattr(self.env, name)
