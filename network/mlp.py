@@ -44,5 +44,8 @@ class MLP(nn.Module):
             output = torch.distributions.Categorical(logits=x)
         else:
             output = x.squeeze()
+            # average over the agents dimension
+            output = output.mean(dim=-1)
+
 
         return output

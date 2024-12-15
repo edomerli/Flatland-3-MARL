@@ -60,7 +60,7 @@ if __name__ == "__main__":
         "num_iterations": NUM_ITERATIONS,
 
         # Network architecture
-        "model": "RailTransformer",  # "RailTransformer" or "MLP"   # TODO: implement MLP baseline or remove
+        "model": "MLP",  # "RailTransformer" or "MLP"   # TODO: implement MLP baseline or remove
         "state_size": obs_builder.observation_dim,
         "action_size": 4,
         "hidden_size": 256,
