@@ -27,7 +27,6 @@ class SkipNoChoiceWrapper:
                         for handle in reward.keys():
                             reward[handle] = reward[handle] + self._skipped_rewards[handle]
                             self._skipped_rewards[handle] = 0
-                    print("Returning step")
                     return obs, reward, done, info
                 elif self._accumulate_skipped_rewards:
                     self._skipped_rewards[agent_id] += reward[agent_id]
@@ -37,12 +36,10 @@ class SkipNoChoiceWrapper:
                     for handle in reward.keys():
                         reward[handle] = reward[handle] + self._skipped_rewards[handle]
                         self._skipped_rewards[handle] = 0
-                print("Returning DONE step")
                 return obs, reward, done, info
             
             # make agents take the default, DO_NOTHING, move at next step
             action_dict = {}
-            print("Skipping step")
 
     def __getattr__(self, name):
         return getattr(self.env, name)
