@@ -63,6 +63,8 @@ class PPO:
 
         last_log_step = 0
         for step in range(self.iterations_timesteps):
+            if step % (self.iterations_timesteps//10) == 0:
+                print(f"Progress: {step}/{self.iterations_timesteps}")
 
             # update global step count
             global_vars.global_step += 1
@@ -125,6 +127,7 @@ class PPO:
                     "play/episode_length": step+1 - last_log_step,
                     "play/step": global_vars.global_step
                 })
+                last_log_step = step + 1
             
                 # reset the environment
                 next_obs_dict, initial_info_dict = self.env.reset()
