@@ -124,15 +124,19 @@ if __name__ == "__main__":
         wandb.define_metric("play/step")
         wandb.define_metric("train/batch")
 
-        wandb.define_metric("play/episodic_reward", step_metric="play/step")
+        wandb.define_metric("play/true_episodic_reward", step_metric="play/step")
+        wandb.define_metric("play/custom_episodic_reward", step_metric="play/step")
         wandb.define_metric("play/episode_length", step_metric="play/step")
+        wandb.define_metric("play/percentage_done", step_metric="play/step")
         wandb.define_metric("train/loss_pi", step_metric="train/batch")
         wandb.define_metric("train/loss_v", step_metric="train/batch")
         wandb.define_metric("train/entropy", step_metric="train/batch")
-        wandb.define_metric("train/lr_policy", step_metric="train/batch")
-        wandb.define_metric("train/lr_value", step_metric="train/batch")
-        wandb.define_metric("test/episodic_reward", step_metric="play/step")
+        wandb.define_metric("train/learning_rate", step_metric="train/batch")
+        wandb.define_metric("train/kl_div", step_metric="train/batch")
+        wandb.define_metric("test/true_episodic_reward", step_metric="play/step")   # TODO: mettere test/step qui come step_metric? Check wandb plots
+        wandb.define_metric("test/custom_episodic_reward", step_metric="play/step")
         wandb.define_metric("test/episode_length", step_metric="play/step")
+        wandb.define_metric("test/percentage_done", step_metric="play/step")
     else:
         config = SimpleNamespace(**CONFIG)
 
