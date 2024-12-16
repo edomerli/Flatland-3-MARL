@@ -5,5 +5,6 @@ wandb/
 envs_config/
 
 yappi_func_stats.txt
-yappi_thread_stats.txt
+yappi_threads_stats.txt
+yappi_func_stats_tsub_sorted.txt
 flatland.zip
