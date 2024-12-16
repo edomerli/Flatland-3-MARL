@@ -20,8 +20,8 @@ class PPO:
         self.num_iterations = config.num_iterations
 
     def learn(self):
-        next_obs_dict, initial_info_dict = self.env.reset()
-        next_obs = dict_to_tensor(next_obs_dict)
+        next_obs, initial_info_dict = self.env.reset()
+        next_obs = torch.tensor(next_obs)
         next_done = False
 
         for iteration in range(self.num_iterations):
@@ -49,7 +49,7 @@ class PPO:
     def _collect_trajectories(self, next_obs, next_done, initial_info_dict):
         n_agents = self.env.get_num_agents()
 
-        observations = torch.zeros(self.iterations_timesteps, n_agents, self.env.obs_builder.observation_dim).to(self.config.device)
+        observations = torch.zeros(self.iterations_timesteps, n_agents, self.config.state_size).to(self.config.device)
         actions = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)   # TODO: questo deve essere un one-hot vector? LO E' GIA'? Double check, important
         log_probs = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)
         custom_rewards = torch.zeros(self.iterations_timesteps).to(self.config.device)
@@ -109,7 +109,7 @@ class PPO:
             custom_rewards[step] = custom_reward
 
             # update next_obs and next_done
-            next_obs = dict_to_tensor(next_obs)
+            next_obs = torch.tensor(next_obs)
             # print(f"==================== Step: {step} ====================")
             # print(done)
             next_done = self.env.is_done(done, info)
@@ -130,8 +130,8 @@ class PPO:
                 last_log_step = step + 1
             
                 # reset the environment
-                next_obs_dict, initial_info_dict = self.env.reset()
-                next_obs = dict_to_tensor(next_obs_dict).to(self.config.device)
+                next_obs, initial_info_dict = self.env.reset()
+                next_obs = torch.tensor(next_obs)
                 next_done = False
 
         # GAE

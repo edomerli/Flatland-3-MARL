@@ -18,7 +18,7 @@ class SkipNoChoiceWrapper:
             prev_done = copy.deepcopy(self.env.dones)
             obs, reward, done, info = self.env.step(action_dict)
 
-            for agent_id in obs.keys():
+            for agent_id in reward.keys():
                 # N.B. "((not prev_done[agent_id]) and done[agent_id])" fa in modo che nel buffer ci sono delle obs che servono solo a far vedere che il treno è arrivato
                 # TODO IMP: prova rimuovendo "((not prev_done[agent_id]) and done[agent_id])", cioè non permettendogli di aggiornare quando ESATTAMENTE un treno
                 # arriva, ma semplicemente vedrà che sarà arrivato alla prossima obs che gli darò (cioè quando sarà necessaria una azione)

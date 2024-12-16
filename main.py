@@ -12,6 +12,7 @@ from flatland.envs.rail_generators import sparse_rail_generator
 from flatland.envs.malfunction_generators import ParamMalfunctionGen, MalfunctionParameters
 from flatland.envs.rail_generators import sparse_rail_generator
 from flatland.envs.line_generators import sparse_line_generator
+from flatland_cutils import TreeObsForRailEnv as TreeCutils
 
 
 from utils.render import render_env
@@ -38,7 +39,8 @@ import yappi
 if __name__ == "__main__":
     ### OBSERVATION ###
     TREE_OBS_DEPTH = 3  # TODO: test with higher
-    obs_builder = FastTreeObs(max_depth=TREE_OBS_DEPTH)
+    NODES_EXPLORED = 5
+    obs_builder = TreeCutils(NODES_EXPLORED, TREE_OBS_DEPTH) #FastTreeObs(max_depth=TREE_OBS_DEPTH)
 
     ### CONFIGURATION ###
     TOT_TIMESTEPS = 2**22    # approx 4M
@@ -49,7 +51,7 @@ if __name__ == "__main__":
         # Environment
         "test_id": "demo_env",
         "env_id": "Level_1",
-        "skip_no_choice_steps": True,  # TODO: reintroduci
+        "skip_no_choice_steps": False,  # TODO: reintroduci
 
         # Observation
         "tree_obs_depth": TREE_OBS_DEPTH,
@@ -61,7 +63,7 @@ if __name__ == "__main__":
 
         # Network architecture
         "model": "MLP",  # "RailTransformer" or "MLP"   # TODO: implement MLP baseline or remove
-        "state_size": obs_builder.observation_dim,
+        "state_size": 12 * NODES_EXPLORED, # TODO: rimetti come var: obs_builder.observation_dim,
         "action_size": 4,
         "hidden_size": 256,
         "num_layers": 4,
@@ -151,18 +153,6 @@ if __name__ == "__main__":
     if config.log_video:
         env = RecorderWrapper(env, config.episode_video_frequency)
 
-
-    # env_steps = 1000  # 2 * env.width * env.height  # Code uses 1.5 to calculate max_steps
-    # rollout_fragment_length = 50
-    # # env = ss.black_death_v2(env)    
-    # env = ss.vector.markov_vector_wrapper.MarkovVectorEnv(env, black_death=True)    # to handle varying number of agents
-    # env = ss.concat_vec_envs_v0(env, 4, num_cpus=1, base_class='stable_baselines3')
-
-    # env.reset()
-    # o, r, d, i = env.step({i: 0 for i in range(50)})
-    # print(f"obs: {o}\n rewards: {r}\n dones: {d}\n infos: {i}")
-    # exit()
-
     ### NETWORK ###
     if config.model == "RailTransformer":
         policy_network = RailTranformer(config.state_size, config.action_size, config.hidden_size, config.num_layers, activation=nn.Tanh)
@@ -171,6 +161,7 @@ if __name__ == "__main__":
     elif config.model == "MLP":
         policy_network = MLP(config.state_size, config.action_size, config.hidden_size, 3, activation=nn.Tanh)
         value_network = MLP(config.state_size, 1, config.hidden_size, 3, activation=nn.Tanh)
+        # TODO: voglio provare sia con Tanh che con ReLU, sono troppo curiosooo
 
     ### MODEL ###
     actor_critic = ActorCritic(policy_network, value_network, config)

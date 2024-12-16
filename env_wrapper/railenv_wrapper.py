@@ -89,9 +89,9 @@ class RailEnvWrapper:
     
     def step(self, action_dict: Dict[int, RailEnvActions]):
         obs, reward, done, info = self.env.step(action_dict)
-        
+
         # override action_required info
-        for agent_id in obs.keys():
+        for agent_id in reward.keys():
             agent = self.env.agents[agent_id]
             # agents that require action are those that 1) are entering their cell and 2) are either (i) moving and are on a decision cell or (ii) are ready to depart
             info["action_required"][agent_id] = info["action_required"][agent_id] \
@@ -132,14 +132,18 @@ class RailEnvWrapper:
                 newly_arrived_agents += 1
 
         # count NEW(!) deadlocks
-        deadlock_avoidance_agent = self.env.obs_builder.dead_lock_avoidance_agent
-        agent_can_move = deadlock_avoidance_agent.agent_can_move
+        # TODO: remove
+        # deadlock_avoidance_agent = self.env.obs_builder.dead_lock_avoidance_agent
+        # agent_can_move = deadlock_avoidance_agent.agent_can_move
+
+        _, properties, _ = self.env.obs_builder.get_properties()
+        deadlocked_agents = properties["deadlocked"]
 
         new_deadlocks = 0
         for handle, state in info["state"].items():
             if handle in self.deadlock_agents:
                 continue
-            elif (TrainState.MOVING <= state <= TrainState.MALFUNCTION) and (agent_can_move.get(handle, None) is None):
+            elif (TrainState.MOVING <= state <= TrainState.MALFUNCTION) and bool(deadlocked_agents[handle]): # TODO: remove -> (agent_can_move.get(handle, None) is None):
                 new_deadlocks += 1
                 self.deadlock_agents.add(handle)
 
@@ -165,8 +169,12 @@ class RailEnvWrapper:
         if done["__all__"]:
             return True
         
-        deadlock_avoidance_agent = self.env.obs_builder.dead_lock_avoidance_agent
-        agent_can_move = deadlock_avoidance_agent.agent_can_move
+        _, properties, _ = self.env.obs_builder.get_properties()
+        deadlocked_agents = properties["deadlocked"]
+        
+        # TODO: remove
+        # deadlock_avoidance_agent = self.env.obs_builder.dead_lock_avoidance_agent
+        # agent_can_move = deadlock_avoidance_agent.agent_can_move
         # print(agent_can_move)
         
         all_done_or_deadlock = True
@@ -174,8 +182,9 @@ class RailEnvWrapper:
             if state == TrainState.DONE:
                 # print(f"Agent {handle} is done")
                 continue
-            elif (TrainState.MOVING <= state <= TrainState.MALFUNCTION) and (agent_can_move.get(handle, None) is None):
-                # print(f"Agent {handle} is in deadlock, state: {state}")
+            elif (TrainState.MOVING <= state <= TrainState.MALFUNCTION) and bool(deadlocked_agents[handle]): #TODO: remove -> (agent_can_move.get(handle, None) is None):
+                # print(f"Agent {handle} is in deadlock, state: {state}, deadlocked_agents: {deadlocked_agents}")
+                # exit()
                 # agent is in deadlock
                 continue
             else:
