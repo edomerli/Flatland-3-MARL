@@ -29,8 +29,8 @@ eval_list = [
 
 def generate_levels(mode, test_id="all", env_id="all"):
     """This function generates the levels for the training and test environments.
-       For the test environments, the RailEnvPersister.save function is used, as the flatland-evaluator uses a specific format for the environment pickle.
-         For the training environments, the custom made save_env_to_pickle function is used, which also saves the random_seed.
+       For the test environments, the RailEnvPersister.save function is used, as the flatland-evaluator uses a specific format for the environment pickle (and always the same seed, 11 I think, which is hardcoded).
+       For the training environments, the custom made save_env_to_pickle function is used, which also saves the random_seed for experiments reproducibility (while the RailEnvPersister did not!).
 
     Args:
         mode (str): The mode in which the levels should be generated. Either "train" or "test".
