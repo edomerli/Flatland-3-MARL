@@ -10,7 +10,7 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     return layer
 
 class RailTranformer(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size, num_layers, activation=nn.ReLU):
+    def __init__(self, state_size, action_size, hidden_size, num_layers, activation=nn.Tanh):
         super(RailTranformer, self).__init__()
 
         self.actor_flag = action_size > 1

@@ -1,5 +1,7 @@
 import pickle
 
+# TODO: delete file, not used
+
 def save_env_to_pickle(env, path):
     """
     Save the environment to a pickle file.

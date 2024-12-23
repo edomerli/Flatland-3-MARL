@@ -36,6 +36,9 @@ class ActorCritic:
         if action is None:
             action = dist.sample()
 
+        if agents_mask is not None:
+            action = action * agents_mask
+
         value = self.value(state)
 
         return action, dist.log_prob(action), dist.entropy(), value

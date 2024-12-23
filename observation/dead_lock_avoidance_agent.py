@@ -7,8 +7,8 @@ from flatland.envs.rail_env import RailEnv, RailEnvActions
 from flatland.envs.step_utils.states import TrainState
 from flatland.envs.fast_methods import fast_count_nonzero
 
-from flatland_starter_kit.agent_action_config import map_rail_env_action
-from flatland_starter_kit.shortest_distance_walker import ShortestDistanceWalker
+from observation.agent_action_config import map_rail_env_action
+from observation.shortest_distance_walker import ShortestDistanceWalker
 
 
 class DeadlockAvoidanceObservation(DummyObservationBuilder):

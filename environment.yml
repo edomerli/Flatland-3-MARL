@@ -1,0 +1,9 @@
+name: flatland-3-marl
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9.20
+  - pip
+  - pip:
+      - -r requirements.txt

@@ -1,6 +1,0 @@
-,test_id,env_id,n_agents,x_dim,y_dim,n_cities,max_rail_pairs_in_city,n_envs_run,grid_mode,max_rails_between_cities,malfunction_duration_min,malfunction_duration_max,malfunction_interval,speed_ratios,random_seed
-0,demo_env,Level_1,5,35,35,3,4,10,False,2,20,50,100,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",0
-1,small_envs_50,Level_1,50,30,35,3,2,10,False,2,20,50,1000,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",22
-2,medium_envs_80,Level_1,80,40,60,9,2,10,False,2,20,50,1000,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",777
-3,large_envs_100,Level_1,100,80,120,21,2,10,False,2,20,50,1000,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",191919
-4,huge_envs_200,Level_1,200,100,100,29,2,10,False,2,20,50,1000,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",45678

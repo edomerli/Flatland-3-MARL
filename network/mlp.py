@@ -8,7 +8,7 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     return layer
 
 class MLP(nn.Module):
-    def __init__(self, state_size, action_size, hidden_size, num_layers, activation=nn.ReLU):
+    def __init__(self, state_size, action_size, hidden_size, num_layers, activation=nn.Tanh):
         super(MLP, self).__init__()
 
         self.actor_flag = action_size > 1
@@ -46,6 +46,5 @@ class MLP(nn.Module):
             output = x.squeeze()
             # average over the agents dimension
             output = output.mean(dim=-1)
-
 
         return output

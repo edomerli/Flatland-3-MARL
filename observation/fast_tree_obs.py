@@ -8,9 +8,9 @@ from flatland.envs.rail_env import RailEnvActions
 
 from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 
-from flatland_starter_kit.agent_can_choose_helper import AgentCanChooseHelper
-from flatland_starter_kit.dead_lock_avoidance_agent import DeadLockAvoidanceAgent
-from flatland_starter_kit.deadlock_check import get_agent_positions, get_agent_targets
+from observation.agent_can_choose_helper import AgentCanChooseHelper
+from observation.dead_lock_avoidance_agent import DeadLockAvoidanceAgent
+from observation.deadlock_check import get_agent_positions, get_agent_targets
 
 """
 LICENCE for the FastTreeObs Observation Builder  

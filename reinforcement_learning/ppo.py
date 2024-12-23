@@ -3,8 +3,11 @@ import numpy as np
 from tqdm import tqdm
 import wandb
 
+import torch.bin
 from utils.conversions import dict_to_tensor, tensor_to_dict
 import utils.global_vars as global_vars
+from utils.timer import Timer
+from flatland.envs.step_utils.states import TrainState
 
 import yappi
 
@@ -19,9 +22,13 @@ class PPO:
         self.iterations_timesteps = config.iteration_timesteps
         self.num_iterations = config.num_iterations
 
+        # episode accumulated rewards
+        self.custom_rewards_sum = 0
+
     def learn(self):
         next_obs, initial_info_dict = self.env.reset()
-        next_obs = torch.tensor(next_obs)
+        # next_obs = torch.tensor(next_obs)
+        next_obs = dict_to_tensor(next_obs)
         next_done = False
 
         for iteration in range(self.num_iterations):
@@ -50,7 +57,7 @@ class PPO:
         n_agents = self.env.get_num_agents()
 
         observations = torch.zeros(self.iterations_timesteps, n_agents, self.config.state_size).to(self.config.device)
-        actions = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)   # TODO: questo deve essere un one-hot vector? LO E' GIA'? Double check, important
+        actions = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)
         log_probs = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)
         custom_rewards = torch.zeros(self.iterations_timesteps).to(self.config.device)
         dones = torch.zeros(self.iterations_timesteps).to(self.config.device)          # TODO: devo probabilmente tenere anche un vettore di quali siano gli agenti già terminati che sono da "mascherare", oppure posso estendere dones ad avere una dimensione agente
@@ -59,18 +66,24 @@ class PPO:
 
         action_required = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)
 
+        # Timers
+        inference_timer = Timer()
+        env_step_timer = Timer()
+        reward_timer = Timer()
+        collection_timer = Timer()
+        collection_timer.start()
+
+        # Actions logging
+        actions_count = torch.zeros(self.config.action_size+1)  # +1 for RailEnvActions.DO_NOTHING
+
         old_info = initial_info_dict
 
-        last_log_step = 0
         for step in range(self.iterations_timesteps):
             if step % (self.iterations_timesteps//10) == 0:
-                print(f"Progress: {step}/{self.iterations_timesteps}")
+                print(f"Timesteps collected: {step}/{self.iterations_timesteps}")
 
             # update global step count
             global_vars.global_step += 1
-
-            # TODO: rimuovi o comunque aggiusta col resto del codice
-            # next_obs, old_info = self.env.cycle_until_action_required(next_obs, old_info)
 
             # load next_obs onto the device
             next_obs = next_obs.to(self.config.device)
@@ -80,64 +93,104 @@ class PPO:
             dones[step] = next_done
             action_required[step] = torch.tensor(list(old_info["action_required"].values())).to(self.config.device)
 
+            inference_timer.start()
             with torch.no_grad():
-                action, log_prob, _, value = self.actor_critic.action_and_value(next_obs.unsqueeze(0), action_required[step].unsqueeze(0))
+                action, log_prob, _, value = self.actor_critic.action_and_value(next_obs.unsqueeze(0), agents_mask=action_required[step].unsqueeze(0))
                 value = value.item()
                 action = action.squeeze()
                 log_prob = log_prob.squeeze()
+            inference_timer.stop()
             
-            actions[step] = action * action_required[step]  # mask the action with action_required, 0 = RailEnvActions.DO_NOTHING
+            actions[step] = action * action_required[step]  # mask the action with action_required, 0 == RailEnvActions.DO_NOTHING
             log_probs[step] = log_prob * action_required[step]  # mask the log_prob with action_required
             values[step] = value
 
-            # TODO: remove
-            # print(f"Action: {action}, action shape: {action.shape}")
-            # print(f"Log_prob: {log_prob}, log_prob shape: {log_prob.shape}")
-            # print(f"Value: {value}")
 
-            # print(f"=====================Step: {step}=======================")
-            # print(f"Env timestep before step: {self.env._elapsed_steps}")
-            # print(f"Old info: {old_info}")
-            next_obs, reward, done, info = self.env.step(tensor_to_dict(action)) #TODO: lui usa (action.cpu().numpy())
-            # print(f"Next info: {info}")
-            # print(f"Env timestep after step: {self.env._elapsed_steps}")
+            env_step_timer.start()
+            # map the action to the agent's action space, but N.B. only for the agents that are required to act!
+            action_agent = action + action_required[step]  # mask the action with action_required, 0 == RailEnvActions.DO_NOTHING
+            next_obs, reward, done, info = self.env.step(tensor_to_dict(action_agent))
+            actions_count += torch.bincount(action_agent.int(), minlength=self.config.action_size+1)
+            env_step_timer.stop()
 
 
             # compute custom reward and update old_info
-            custom_reward = self.env.custom_reward(done, reward, old_info, info)
+            reward_timer.start()
+            # custom_reward = self.env.custom_reward(done, reward, old_info, info)  # TODO: restore
+            custom_reward = sum(reward.values())
             old_info = info
             custom_rewards[step] = custom_reward
+            self.custom_rewards_sum += custom_reward
+            reward_timer.stop()
 
             # update next_obs and next_done
-            next_obs = torch.tensor(next_obs)
-            # print(f"==================== Step: {step} ====================")
-            # print(done)
-            next_done = self.env.is_done(done, info)
-            # print(next_done)
-
+            # next_obs = torch.tensor(next_obs)
+            next_obs = dict_to_tensor(next_obs)
+            # next_done = self.env.is_done(done, info)  # TODO: restore
+            next_done = done["__all__"]
 
             if next_done:
+                # print(f"Episode done at step {self.env._elapsed_steps}/{self.env._max_episode_steps}")
                 normalized_reward = self.env.normalized_reward(done, reward)
 
-                # log real and custom rewards episodically
-                wandb.log({
-                    "play/true_episodic_reward": normalized_reward,
-                    "play/custom_episodic_reward": custom_rewards[last_log_step:step+1].sum().item(),
-                    "play/percentage_done": sum(list(done.values())[:-1]) / n_agents,
-                    "play/episode_length": step+1 - last_log_step,
-                    "play/step": global_vars.global_step
-                })
-                last_log_step = step + 1
-            
+                # N.B. cannot use done dict as a reference as the env sets it to True for all agents even if the environment terminated due to max_steps reached!
+                # instead, we have to rely on agent.state
+                percentage_done = sum([1 for agent in self.env.agents if agent.state == TrainState.DONE]) / n_agents
+
+                if self.config.wandb:
+                    # log real and custom rewards episodically
+                    wandb.log({
+                        "play/true_episodic_reward": normalized_reward,
+                        "play/custom_episodic_reward": self.custom_rewards_sum,
+                        "play/percentage_done": percentage_done,
+                        "play/episode_length": self.env._elapsed_steps,
+                        "play/step": global_vars.global_step
+                    })
+
                 # reset the environment
                 next_obs, initial_info_dict = self.env.reset()
-                next_obs = torch.tensor(next_obs)
+                # next_obs = torch.tensor(next_obs)
+                next_obs = dict_to_tensor(next_obs)
                 next_done = False
+                self.custom_rewards_sum = 0
+
+        if self.config.wandb:
+            # log timers
+            collection_timer.stop()
+            wandb.log({
+                "timer/inference": inference_timer.avg_elapsed(),
+                "timer/env_step": env_step_timer.avg_elapsed(),
+                "timer/reward": reward_timer.avg_elapsed(),
+                "timer/collection": collection_timer.avg_elapsed(),
+                "timer/step": global_vars.global_step,
+            })
+
+            # log actions
+            actions_prob = actions_count / max(1, sum(actions_count))
+            # renormalize only the non-zero actions
+            actions_prob[1:] = actions_prob[1:] / sum(actions_prob[1:])
+            wandb.log({
+                "action/masked_agent":actions_prob[0],
+                "action/left": actions_prob[1],
+                "action/forward": actions_prob[2],
+                "action/right": actions_prob[3],
+                "action/stop": actions_prob[4],
+                "action/step": global_vars.global_step
+            })
+
+        # print(f"Actions: {actions_count}")
+        # actions_prob = actions_count / max(1, sum(actions_count))
+        # print(f"Actions prob: {actions_prob}")
+        # exit()
+
 
         # GAE
         advantages, value_targets = self._compute_gae(next_obs, next_done, custom_rewards, dones, values)
 
-        # next_obs and next_done are returned because they will be used asthe initial state for the next iteration
+        if self.config.normalize_v_targets:
+            self.actor_critic.update_v_target_stats(value_targets)
+
+        # next_obs and next_done are returned because they will be used as the initial state for the next iteration
         return observations, actions, log_probs, value_targets, advantages, action_required, next_obs, next_done
 
 
@@ -170,6 +223,11 @@ class PPO:
         # print(f"Value_targets: {value_targets.shape} \n {value_targets}")
         # print(f"Advantages: {advantages.shape} \n {advantages}")
         # exit()
+
+        # timers
+        train_timer = Timer()
+        train_timer.start()
+
         self.actor_critic.train()   # set the actor_critic to training mode
         epoch_indices = np.arange(self.iterations_timesteps)
 
@@ -186,7 +244,7 @@ class PPO:
                 batch_advantages = advantages[batch_indices]
                 batch_actions_required = actions_required[batch_indices]
 
-                _, newlogprob, entropy, newvalues = self.actor_critic.action_and_value(batch_observations, batch_actions)
+                _, newlogprob, entropy, newvalues = self.actor_critic.action_and_value(batch_observations, action=batch_actions)
                 logratio = newlogprob - batch_log_probs
                 ratio = torch.exp(logratio)
 
@@ -227,25 +285,27 @@ class PPO:
                 loss_value.backward()
                 self.optimizer.step()
 
-                if global_vars.global_batch % self.config.log_frequency == 0:
+                if self.config.wandb and global_vars.global_batch % self.config.batch_log_frequency == 0:
                     wandb.log({
                         "train/loss_pi": loss_pi.item(),
                         "train/loss_v": loss_value.item(),
                         "train/entropy": loss_entropy.item(),
                         "train/learning_rate": self.optimizer.param_groups[0]["lr"],
-                        "train/batch": global_vars.global_batch
+                        "train/kl_div": approx_kl.item(),
+                        "train/batch": global_vars.global_batch,
                     })
 
                 global_vars.global_batch += 1
 
             self.scheduler.step()
 
-            wandb.log({"train/kl_div": approx_kl.item(), "train/batch": global_vars.global_batch})
             if approx_kl > self.config.kl_limit:
                 print(f"Early stopping at epoch {epoch} due to KL divergence {round(approx_kl.item(), 4)} > {self.config.kl_limit}")
                 break
+
+        if self.config.wandb:
+            train_timer.stop()
+            wandb.log({"timer/train": train_timer.avg_elapsed(), "timer/step": global_vars.global_step})
         
-
-
-    def save(self):
-        pass
+    def save(self, path):
+        torch.save(self.actor_critic.policy_state_dict(), path)
