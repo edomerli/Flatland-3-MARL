@@ -255,7 +255,8 @@ class PPO:
 
                 # compute approx_kl (http://joschu.net/blog/kl-approx.html)
                 with torch.no_grad():
-                    approx_kl = ((ratio - 1) - logratio).mean()
+                    # mean over the number of real actions taken
+                    approx_kl = (((ratio - 1) - logratio) * batch_actions_required).sum() / batch_actions_required.sum()
 
                 # normalize advantages
                 batch_advantages = (batch_advantages - batch_advantages.mean()) / (batch_advantages.std() + 1e-8)
