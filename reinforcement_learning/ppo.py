@@ -73,7 +73,7 @@ class PPO:
         collection_timer = Timer()
 
         # Actions logging
-        actions_count = torch.zeros(self.config.action_size+1)  # +1 for RailEnvActions.DO_NOTHING
+        actions_count = torch.zeros(self.config.action_size+1).to(self.config.device)  # +1 for RailEnvActions.DO_NOTHING
 
         old_info = initial_info_dict
 
