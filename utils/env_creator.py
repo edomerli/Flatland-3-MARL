@@ -9,7 +9,7 @@ from flatland.envs.persistence import RailEnvPersister
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.rail_generators import sparse_rail_generator
 
-from utils.persister import save_env_to_pickle
+# from utils.persister import save_env_to_pickle
 
 eval_list = [
     "n_agents",

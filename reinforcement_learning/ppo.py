@@ -60,7 +60,7 @@ class PPO:
         actions = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)
         log_probs = torch.zeros(self.iterations_timesteps, n_agents).to(self.config.device)
         custom_rewards = torch.zeros(self.iterations_timesteps).to(self.config.device)
-        dones = torch.zeros(self.iterations_timesteps).to(self.config.device)          # TODO: devo probabilmente tenere anche un vettore di quali siano gli agenti già terminati che sono da "mascherare", oppure posso estendere dones ad avere una dimensione agente
+        dones = torch.zeros(self.iterations_timesteps).to(self.config.device)
         values = torch.zeros(self.iterations_timesteps).to(self.config.device)
         advantages = torch.zeros(self.iterations_timesteps).to(self.config.device)
 
@@ -71,7 +71,6 @@ class PPO:
         env_step_timer = Timer()
         reward_timer = Timer()
         collection_timer = Timer()
-        collection_timer.start()
 
         # Actions logging
         actions_count = torch.zeros(self.config.action_size+1)  # +1 for RailEnvActions.DO_NOTHING
@@ -79,6 +78,7 @@ class PPO:
         old_info = initial_info_dict
 
         for step in range(self.iterations_timesteps):
+            collection_timer.start()
             if step % (self.iterations_timesteps//10) == 0:
                 print(f"Timesteps collected: {step}/{self.iterations_timesteps}")
 
@@ -87,23 +87,22 @@ class PPO:
 
             # load next_obs onto the device
             next_obs = next_obs.to(self.config.device)
-            # next_done = next_done.to(self.config.device)    # TODO: needed? non so se serve passare next_done alla rete
 
+            inference_timer.start()
             observations[step] = next_obs
             dones[step] = next_done
             action_required[step] = torch.tensor(list(old_info["action_required"].values())).to(self.config.device)
 
-            inference_timer.start()
             with torch.no_grad():
                 action, log_prob, _, value = self.actor_critic.action_and_value(next_obs.unsqueeze(0), agents_mask=action_required[step].unsqueeze(0))
                 value = value.item()
                 action = action.squeeze()
                 log_prob = log_prob.squeeze()
-            inference_timer.stop()
             
             actions[step] = action * action_required[step]  # mask the action with action_required, 0 == RailEnvActions.DO_NOTHING
             log_probs[step] = log_prob * action_required[step]  # mask the log_prob with action_required
             values[step] = value
+            inference_timer.stop()
 
 
             env_step_timer.start()
@@ -116,8 +115,8 @@ class PPO:
 
             # compute custom reward and update old_info
             reward_timer.start()
-            # custom_reward = self.env.custom_reward(done, reward, old_info, info)  # TODO: restore
-            custom_reward = sum(reward.values())
+            custom_reward = self.env.custom_reward(done, reward, old_info, info)  # TODO: restore
+            # custom_reward = sum(reward.values())  # TODO: remove
             old_info = info
             custom_rewards[step] = custom_reward
             self.custom_rewards_sum += custom_reward
@@ -154,20 +153,24 @@ class PPO:
                 next_done = False
                 self.custom_rewards_sum = 0
 
+            collection_timer.stop()
+
         if self.config.wandb:
             # log timers
-            collection_timer.stop()
             wandb.log({
-                "timer/inference": inference_timer.avg_elapsed(),
-                "timer/env_step": env_step_timer.avg_elapsed(),
-                "timer/reward": reward_timer.avg_elapsed(),
-                "timer/collection": collection_timer.avg_elapsed(),
+                "timer/inference": inference_timer.cumulative_elapsed(),
+                "timer/env_step": env_step_timer.cumulative_elapsed(),
+                "timer/reward": reward_timer.cumulative_elapsed(),
+                "timer/collection": collection_timer.cumulative_elapsed(),
                 "timer/step": global_vars.global_step,
             })
 
             # log actions
             actions_prob = actions_count / max(1, sum(actions_count))
             # renormalize only the non-zero actions
+            # this way we have: 
+            # - actions_prob[0] = percentage of agents that got masked because not in a decision cell
+            # - actions_prob[1:] = policy distribution over the actions
             actions_prob[1:] = actions_prob[1:] / sum(actions_prob[1:])
             wandb.log({
                 "action/masked_agent":actions_prob[0],
@@ -177,12 +180,6 @@ class PPO:
                 "action/stop": actions_prob[4],
                 "action/step": global_vars.global_step
             })
-
-        # print(f"Actions: {actions_count}")
-        # actions_prob = actions_count / max(1, sum(actions_count))
-        # print(f"Actions prob: {actions_prob}")
-        # exit()
-
 
         # GAE
         advantages, value_targets = self._compute_gae(next_obs, next_done, custom_rewards, dones, values)
@@ -223,6 +220,11 @@ class PPO:
         # print(f"Value_targets: {value_targets.shape} \n {value_targets}")
         # print(f"Advantages: {advantages.shape} \n {advantages}")
         # exit()
+
+        # count how many datapoints have at least one agent that is required to act
+        n_datapoints = actions_required.sum(-1).nonzero().size(0)
+        print(f"Number of datapoints with at least one agent that is required to act: {n_datapoints}/{self.iterations_timesteps}")
+
 
         # timers
         train_timer = Timer()
@@ -306,7 +308,7 @@ class PPO:
 
         if self.config.wandb:
             train_timer.stop()
-            wandb.log({"timer/train": train_timer.avg_elapsed(), "timer/step": global_vars.global_step})
+            wandb.log({"timer/train": train_timer.cumulative_elapsed(), "timer/step": global_vars.global_step})
         
     def save(self, path):
         torch.save(self.actor_critic.policy_state_dict(), path)

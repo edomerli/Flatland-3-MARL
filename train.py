@@ -18,7 +18,7 @@ from flatland.envs.line_generators import sparse_line_generator
 
 from utils.render import render_env
 from utils.seeding import seed_everything
-from utils.persister import load_env_from_pickle
+# from utils.persister import load_env_from_pickle
 # from utils.logger import WandbLogger
 from utils.recorder import RecorderWrapper
 from utils.env_creator import create_train_env
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--env_size", help="The size of the environment to train on. Must be one of [demo, small, medium, large, huge]", default="small", type=str)
     parser.add_argument("--network_architecture", help="The network architecture to use. Must be one of [MLP, RailTransformer]", default="MLP", type=str)
-    parser.add_argument("--skip_no_choice_cells", help="Whether to skip cells where the agent has no choice", action="store_true")
+    parser.add_argument("--skip_no_choice_cells", help="Whether to skip cells where the agent has no choice", action="store_true")  # TODO: remove as it's shite!
     parser.add_argument("--normalize_v_targets", help="Whether to normalize the value targets", action="store_true")
     parser.add_argument("--log_video", help="Whether to log videos of the episodes to wandb", action="store_true")
     # TODO: try with agents masking on/off
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     obs_builder = FastTreeObs(max_depth=TREE_OBS_DEPTH)
 
     ### CONFIGURATION ###
-    TOT_TIMESTEPS = 2**20    # approx 4M
+    TOT_TIMESTEPS = 2**20    # approx 1M
     ITER_TIMESTEPS = 2**10    # approx 1K
     NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
 
@@ -75,7 +75,7 @@ if __name__ == "__main__":
         "num_layers": 3,
 
         # Training params
-        "epochs": 10,    # TODO: try 3, 5 and 10
+        "epochs": 10,
         "batch_size": 128,
         "learning_rate": 2.5e-4,
         "kl_limit": 0.02,
@@ -182,14 +182,16 @@ if __name__ == "__main__":
     ppo.learn()
 
     now = datetime.today().strftime('%Y%m%d-%H%M')
-    weights_path = f"weights/{now}_policy_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_{config.tot_timesteps}_{config.seed}.pt"
+    weights_path = f"weights/{now}_policy_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
     ppo.save(weights_path)
     print(f"Weights saved successfully at {weights_path}!")
 
     # save config as a json file
-    config_path = f"weights/{now}_config_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_{config.tot_timesteps}_{config.seed}.json"
+    config_path = f"weights/{now}_config_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.json"
+    CONFIG["weights_path"] = weights_path
+    CONFIG["device"] = config.device.type   # convert device to string for json serialization
     with open(config_path, "w") as f:
-        json.dump(CONFIG, f)
+        json.dump(CONFIG, f, indent=4)
     print(f"Config saved successfully at {config_path}!")
 
     wandb.finish()

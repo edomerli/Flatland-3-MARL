@@ -1,5 +1,6 @@
 from flatland.envs.rail_env import RailEnvActions
 
+# TODO: potrei spostarla in dead_lock_avoidance_agent.py visto che la usa solo lui!!
 def map_rail_env_action(action):
     """Removes the STOP_MOVING action from the RailEnvActions enum and maps the other actions to a 0-based index.
 
