@@ -6,27 +6,7 @@ from flatland.envs.fast_methods import fast_count_nonzero
 
 # TODO: alternativamente potrei usare flatland.contrib.utils.deadlock_checker! Guardaci magari
 
-def get_agent_positions(env):
-    agent_positions: np.ndarray = np.full((env.height, env.width), -1)
-    for agent_handle in env.get_agent_handles():
-        agent = env.agents[agent_handle]
-        if TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION:
-            position = agent.position
-            if position is None:
-                position = agent.initial_position
-            agent_positions[position] = agent_handle
-    return agent_positions
-
-
-def get_agent_targets(env):
-    agent_targets = []
-    for agent_handle in env.get_agent_handles():
-        agent = env.agents[agent_handle]
-        if TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION:
-            agent_targets.append(agent.target)
-    return agent_targets
-
-
+# TODO: reuse or delete, unused
 def check_for_deadlock(handle, env, agent_positions, check_position=None, check_direction=None):
     agent = env.agents[handle]
     if agent.state == TrainState.DONE:

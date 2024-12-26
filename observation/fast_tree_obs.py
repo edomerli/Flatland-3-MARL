@@ -1,30 +1,13 @@
 from typing import List, Optional, Any
-
 import numpy as np
+
 from flatland.core.env_observation_builder import ObservationBuilder
 from flatland.core.grid.grid4_utils import get_new_position
 from flatland.envs.step_utils.states import TrainState
 from flatland.envs.rail_env import RailEnvActions
-
 from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 
-from observation.agent_can_choose_helper import AgentCanChooseHelper
-from observation.dead_lock_avoidance_agent import DeadLockAvoidanceAgent
-from observation.deadlock_check import get_agent_positions, get_agent_targets
-
 from utils.decision_cells import find_switches_and_switches_neighbors
-
-"""
-LICENCE for the FastTreeObs Observation Builder  
-
-The observation can be used freely and reused for further submissions. Only the author needs to be referred to
-/mentioned in any submissions - if the entire observation or parts, or the main idea is used.
-
-Author: Adrian Egli (adrian.egli@gmail.com)
-
-[Linkedin](https://www.researchgate.net/profile/Adrian_Egli2)
-[Researchgate](https://www.linkedin.com/in/adrian-egli-733a9544/)
-"""
 
 
 class FastTreeObs(ObservationBuilder):
@@ -32,47 +15,9 @@ class FastTreeObs(ObservationBuilder):
     def __init__(self, max_depth: Any):
         self.max_depth = max_depth
         self.observation_dim = 35 # TODO: rimetti se rimetti deadlock agent obs 40
-        self.agent_can_choose_helper = None
-        # self.dead_lock_avoidance_agent = DeadLockAvoidanceAgent(None, 4)  # 4 is the action space size, not considering the DO_NOTHING action
-
-    # TODO: remove??
-    def debug_render(self, env_renderer):
-        agents_can_choose, agents_on_switch, agents_near_to_switch, agents_near_to_switch_all = \
-            self.agent_can_choose_helper.required_agent_decision()
-        self.env.dev_obs_dict = {}
-        for a in range(max(3, self.env.get_num_agents())):
-            self.env.dev_obs_dict.update({a: []})
-
-        selected_agent = None
-        if agents_can_choose[0]:
-            if self.env.agents[0].position is not None:
-                self.debug_render_list.append(self.env.agents[0].position)
-            else:
-                self.debug_render_list.append(self.env.agents[0].initial_position)
-
-        if self.env.agents[0].position is not None:
-            self.debug_render_path_list.append(self.env.agents[0].position)
-        else:
-            self.debug_render_path_list.append(self.env.agents[0].initial_position)
-
-        env_renderer.gl.agent_colors[0] = env_renderer.gl.rgb_s2i("FF0000")
-        env_renderer.gl.agent_colors[1] = env_renderer.gl.rgb_s2i("666600")
-        env_renderer.gl.agent_colors[2] = env_renderer.gl.rgb_s2i("006666")
-        env_renderer.gl.agent_colors[3] = env_renderer.gl.rgb_s2i("550000")
-
-        self.env.dev_obs_dict[0] = self.debug_render_list
-        self.env.dev_obs_dict[1] = self.agent_can_choose_helper.switches.keys()
-        self.env.dev_obs_dict[2] = self.agent_can_choose_helper.switches_neighbours.keys()
-        self.env.dev_obs_dict[3] = self.debug_render_path_list
 
     def reset(self):
-        # if self.agent_can_choose_helper is None:
-        #     self.agent_can_choose_helper = AgentCanChooseHelper()
-        # self.agent_can_choose_helper.build_data(self.env)
-        # self.debug_render_list = []
-        # self.debug_render_path_list = []
         self.switches, self.switches_neighbors = find_switches_and_switches_neighbors(self.env)
-        # self.dead_lock_avoidance_agent.reset(self.env)
 
     def _explore(self, handle, new_position, new_direction, distance_map, depth=0):
         has_opp_agent = 0
@@ -112,8 +57,6 @@ class FastTreeObs(ObservationBuilder):
             # agents_on_switch == TRUE -> Current cell is a switch where the agent can decide (branch) in exploration
             # agent_near_to_switch == TRUE -> One cell before the switch, where the agent can decide
             agents_on_switch, agents_near_to_switch, _, _ = self._on_or_near_switch(new_position, new_direction)
-            # agents_on_switch, agents_near_to_switch, _, _ = \
-            #     self.agent_can_choose_helper.check_agent_decision(new_position, new_direction)
 
             if agents_near_to_switch:
                 # The exploration was walking on a path where the agent can not decide
@@ -162,8 +105,7 @@ class FastTreeObs(ObservationBuilder):
 
     def get_many(self, handles: Optional[List[int]] = None):
         # self.dead_lock_avoidance_agent.start_step(False)
-        self.agent_positions = get_agent_positions(self.env)
-        self.agents_target = get_agent_targets(self.env)
+        self.agents_target = self._get_moving_agents_targets()  #get_agent_targets(self.env)
         observations = super().get_many(handles)
         # self.dead_lock_avoidance_agent.end_step(False)
         return observations
@@ -205,12 +147,6 @@ class FastTreeObs(ObservationBuilder):
         # observation[32] : If there is a path with step (direction 1) and there is another agent's target on this path -> 1
         # observation[33] : If there is a path with step (direction 2) and there is another agent's target on this path -> 1
         # observation[34] : If there is a path with step (direction 3) and there is another agent's target on this path -> 1
-        # observation[35] : int(deadlock_avoidance_agent's action == RailEnvActions.DO_NOTHING)
-        # observation[36] : int(deadlock_avoidance_agent's action == RailEnvActions.MOVE_LEFT)
-        # observation[37] : int(deadlock_avoidance_agent's action == RailEnvActions.MOVE_FORWARD)
-        # observation[38] : int(deadlock_avoidance_agent's action == RailEnvActions.MOVE_RIGHT)
-        # observation[39] : int(deadlock_avoidance_agent's action == RailEnvActions.STOP_MOVING)
-        
 
         observation = np.zeros(self.observation_dim)
         visited = []
@@ -264,19 +200,11 @@ class FastTreeObs(ObservationBuilder):
             agents_near_to_switch_all, \
             agents_on_switch_all = \
                 self._on_or_near_switch(agent_virtual_position, agent.direction)
-                # self.agent_can_choose_helper.check_agent_decision(agent_virtual_position, agent.direction)
 
             observation[11] = int(agents_on_switch)
             observation[12] = int(agents_on_switch_all)
             observation[13] = int(agents_near_to_switch)
             observation[14] = int(agents_near_to_switch_all)
-
-            # action = self.dead_lock_avoidance_agent.act(handle, None, eps=0)
-            # observation[35] = action == RailEnvActions.DO_NOTHING
-            # observation[36] = action == RailEnvActions.MOVE_LEFT
-            # observation[37] = action == RailEnvActions.MOVE_FORWARD
-            # observation[38] = action == RailEnvActions.MOVE_RIGHT
-            # observation[39] = action == RailEnvActions.STOP_MOVING
 
         self.env.dev_obs_dict.update({handle: visited})
 
@@ -307,3 +235,7 @@ class FastTreeObs(ObservationBuilder):
         agent_near_to_switch_all = position in self.switches_neighbors[direction]
         
         return agent_on_switch, agent_near_to_switch, agent_near_to_switch_all, agent_on_switch_all
+
+    def _get_moving_agents_targets(self):
+        agent_targets = [agent.target for agent in self.env.agents if TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION]
+        return set(agent_targets)
