@@ -14,7 +14,7 @@ class FastTreeObs(ObservationBuilder):
 
     def __init__(self, max_depth: Any):
         self.max_depth = max_depth
-        self.observation_dim = 35 # TODO: rimetti se rimetti deadlock agent obs 40
+        self.observation_dim = 39 # TODO: metti 40 dopo aver aggiunto "agent in deadlock"
 
     def reset(self):
         self.switches, self.switches_neighbors = find_switches_and_switches_neighbors(self.env)
@@ -111,6 +111,7 @@ class FastTreeObs(ObservationBuilder):
         return observations
 
     def get(self, handle: int = 0):
+        # TODO: reorder these?? Like state first etc.
         # all values are [0,1]
         # observation[0]  : 1 path towards target (direction 0) / otherwise 0 -> path is longer or there is no path
         # observation[1]  : 1 path towards target (direction 1) / otherwise 0 -> path is longer or there is no path
@@ -147,6 +148,11 @@ class FastTreeObs(ObservationBuilder):
         # observation[32] : If there is a path with step (direction 1) and there is another agent's target on this path -> 1
         # observation[33] : If there is a path with step (direction 2) and there is another agent's target on this path -> 1
         # observation[34] : If there is a path with step (direction 3) and there is another agent's target on this path -> 1
+        # observation[35] : Agent's speed == 1
+        # observation[36] : Agent's speed == 0.5
+        # observation[37] : Agent's speed == 0.33
+        # observation[38] : Agent's speed == 0.25
+
 
         observation = np.zeros(self.observation_dim)
         visited = []
@@ -205,6 +211,8 @@ class FastTreeObs(ObservationBuilder):
             observation[12] = int(agents_on_switch_all)
             observation[13] = int(agents_near_to_switch)
             observation[14] = int(agents_near_to_switch_all)
+
+            observation[35 + agent.speed_counter.max_count] = 1     # max_count = int(1.0 / speed) - 1, i.e. 0 if speed==1, 1 if speed==0.5, 2 if speed==0.33, 3 if speed==0.25
 
         self.env.dev_obs_dict.update({handle: visited})
 
