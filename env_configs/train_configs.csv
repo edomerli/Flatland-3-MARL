@@ -1,5 +1,5 @@
 ,env_size,n_agents,x_dim,y_dim,n_cities,max_rail_pairs_in_city,grid_mode,max_rails_between_cities,malfunction_duration_min,malfunction_duration_max,malfunction_interval,speed_ratios,random_seed
-0,demo,5,30,30,2,3,False,2,20,50,1000,"{1.0: 1.0, 0.5: 0.0, 0.33: 0.0, 0.25: 0.0}",0
+0,demo,5,30,30,2,3,False,2,20,50,1000,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",0
 1,small,50,40,40,3,2,False,2,20,50,1000,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",22
 2,medium,80,40,60,9,2,False,2,20,50,1000,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",777
 3,large,100,80,120,21,2,False,2,20,50,1000,"{1.0: 0.25, 0.5: 0.25, 0.33: 0.25, 0.25: 0.25}",191919
