@@ -38,7 +38,7 @@ class RailTranformer(nn.Module):
         ### ATTENTION ###
         self.transformer = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(hidden_size, 4, hidden_size * 4, norm_first=False, batch_first=True),
-            num_layers=3,
+            num_layers=num_layers,
             norm=nn.LayerNorm(hidden_size),
         )
 
