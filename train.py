@@ -176,10 +176,14 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(actor_critic.parameters(), lr=config.learning_rate, eps=config.adam_eps)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.num_iterations*config.epochs, eta_min=1e-6)
 
-
+    ### TRAINING ###
     ppo = PPO(actor_critic, env, config, optimizer, scheduler)
 
     ppo.learn()
+
+    ### SAVE WEIGHTS AND CONFIG ###
+    if not os.path.exists("weights"):
+        os.makedirs("weights")
 
     now = datetime.today().strftime('%Y%m%d-%H%M')
     weights_path = f"weights/{now}_policy_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
