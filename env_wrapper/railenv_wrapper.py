@@ -62,7 +62,7 @@ class RailEnvWrapper:
             info["action_required"][agent_id] is True iff
                 1) ...same as above...
                 OR 
-                2) ...same as above... AND the agent is on a decision cell (i.e. a cell where the agent can choose its direction!)
+                2) ...same as above... AND the agent is on a decision cell (i.e. a cell where the agent can choose its direction!) AND is not in deadlock
 
         Furthermore, if all agents are either done or in deadlock, the environment is set to terminate in the next step.
         This early episode termination avoids useless computation and useless steps in the training batches.
@@ -78,8 +78,7 @@ class RailEnvWrapper:
         # update action_required in the info dict
         for agent in self.env.agents:
             if info["action_required"][agent.handle] and (TrainState.MOVING <= agent.state <= TrainState.STOPPED):  # i.e. condition 2) above
-                info["action_required"][agent.handle] = self._on_decision_cell(agent)
-        # TODO: action_required is false if the agent is in a deadlock?? Try it!    
+                info["action_required"][agent.handle] = self._on_decision_cell(agent) and not self.env.deadlock_checker.agent_deadlock[agent.handle]    # TODO: check che deadlock condition non peggiori performance 
 
         # check if all agents are either done or in deadlock
         all_done_or_deadlock = True
@@ -152,53 +151,4 @@ class RailEnvWrapper:
             float: the true episodic reward
         """
         return 1.0 + sum(reward.values()) / self.env.get_num_agents() / self.env._max_episode_steps   
-
-    def is_done(self, done, info):
-        # TODO: docstring
-
-        # TODO: remove
-        all_done_or_deadlock = True
-        for agent in self.env.agents:
-            if agent.state == TrainState.DONE or self.deadlock_checker.agent_deadlock[agent.handle]:
-                continue
-            else:
-                all_done_or_deadlock = False
-                break
-
-        n_deadlocks = sum(self.deadlock_checker.agent_deadlock)
-        if all_done_or_deadlock and n_deadlocks > 0:
-            print(f"Number of deadlock agents: {n_deadlocks}")
-            print(f"Number of done agents: {sum([agent.state == TrainState.DONE for agent in self.env.agents])}")
-            print(f"Steps done: {self.env._elapsed_steps}/{self.env._max_episode_steps}. Left: {self.env._max_episode_steps - self.env._elapsed_steps}")
-            print(f"Percentage of steps left: {(self.env._max_episode_steps - self.env._elapsed_steps) / self.env._max_episode_steps}")
-
-
-        if done["__all__"]:
-            return True
-        return False    # TODO: remove if you want to use the deadlock checker
-        
-        _, properties, _ = self.env.obs_builder.get_properties()
-        deadlocked_agents = properties["deadlocked"]
-        
-        # TODO: remove
-        # deadlock_avoidance_agent = self.env.obs_builder.dead_lock_avoidance_agent
-        # agent_can_move = deadlock_avoidance_agent.agent_can_move
-        # print(agent_can_move)
-        
-        all_done_or_deadlock = True
-        for handle, state in info["state"].items():
-            if state == TrainState.DONE:
-                # print(f"Agent {handle} is done")
-                continue
-            elif (TrainState.MOVING <= state <= TrainState.MALFUNCTION) and bool(deadlocked_agents[handle]): #TODO: remove -> (agent_can_move.get(handle, None) is None):
-                # print(f"Agent {handle} is in deadlock, state: {state}, deadlocked_agents: {deadlocked_agents}")
-                # exit()
-                # agent is in deadlock
-                continue
-            else:
-                # print(f"Agent {handle} is not done and not in deadlock")
-                all_done_or_deadlock = False
-                break
-        
-        return all_done_or_deadlock
 

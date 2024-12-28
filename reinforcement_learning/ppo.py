@@ -123,7 +123,7 @@ class PPO:
 
             # update next_obs and next_done
             next_obs = dict_to_tensor(next_obs)
-            next_done = self.env.is_done(done, info)
+            next_done = done["__all__"]
 
             if next_done:
                 # print(f"Episode done at step {self.env._elapsed_steps}/{self.env._max_episode_steps}")
