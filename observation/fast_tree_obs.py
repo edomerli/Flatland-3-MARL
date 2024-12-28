@@ -14,7 +14,11 @@ class FastTreeObs(ObservationBuilder):
 
     def __init__(self, max_depth: Any):
         self.max_depth = max_depth
-        self.observation_dim = 39 # TODO: metti 40 dopo aver aggiunto "agent in deadlock"
+        self.observation_dim = 40
+        self.deadlock_checker = None
+
+    def set_deadlock_checker(self, deadlock_checker):
+        self.deadlock_checker = deadlock_checker
 
     def reset(self):
         self.switches, self.switches_neighbors = find_switches_and_switches_neighbors(self.env)
@@ -152,7 +156,7 @@ class FastTreeObs(ObservationBuilder):
         # observation[36] : Agent's speed == 0.5
         # observation[37] : Agent's speed == 0.33
         # observation[38] : Agent's speed == 0.25
-
+        # observation[39] : If agent is deadlocked
 
         observation = np.zeros(self.observation_dim)
         visited = []
@@ -213,6 +217,7 @@ class FastTreeObs(ObservationBuilder):
             observation[14] = int(agents_near_to_switch_all)
 
             observation[35 + agent.speed_counter.max_count] = 1     # max_count = int(1.0 / speed) - 1, i.e. 0 if speed==1, 1 if speed==0.5, 2 if speed==0.33, 3 if speed==0.25
+            observation[39] = self.deadlock_checker.agent_deadlock[handle]
 
         self.env.dev_obs_dict.update({handle: visited})
 
