@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--env_size", help="The size of the environment to train on. Must be one of [demo, mini, small, medium, large, huge]", default="small", type=str)
     parser.add_argument("--network_architecture", help="The network architecture to use. Must be one of [MLP, RailTransformer]", default="MLP", type=str)
-    parser.add_argument("--skip_no_choice_cells", help="Whether to skip cells where the agent has no choice\nWARNING: tests showed that training yields much worse performance with this option on", action="store_true")
+    parser.add_argument("--skip_no_choice_cells", help="Whether to skip cells where the agent has no choice", action="store_true")
     parser.add_argument("--normalize_v_targets", help="Whether to normalize the value targets", action="store_true")
     parser.add_argument("--load_checkpoint_env", help="The environment size of the checkpoint to load. Must be one of [demo, mini, small, medium, large, huge]. The latest one with the compatible network_architecture will be loaded.", default="", type=str)
     parser.add_argument("--log_video", help="Whether to log videos of the episodes to wandb", action="store_true")

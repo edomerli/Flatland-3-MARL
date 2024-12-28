@@ -1,44 +1,49 @@
-from flatland.envs.agent_utils import EnvAgent
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.agent_utils import TrainState
-from collections import defaultdict
 import copy
 
 
-# TODO: correct it and test with it
 class SkipNoChoiceWrapper:
-    def __init__(self, env: RailEnv, accumulate_skipped_rewards=True):
+    def __init__(self, env: RailEnv):
         self.env = env
-
-        self._accumulate_skipped_rewards = accumulate_skipped_rewards
-        self._skipped_rewards = defaultdict(int)
     
     def step(self, action_dict):
         while True:
-            prev_done = copy.deepcopy(self.env.dones)
+            old_info = self.env.get_info_dict()
             obs, reward, done, info = self.env.step(action_dict)
 
-            for agent_id in reward.keys():
-                # N.B. "((not prev_done[agent_id]) and done[agent_id])" fa in modo che nel buffer ci sono delle obs che servono solo a far vedere che il treno è arrivato
-                # TODO IMP: prova rimuovendo "((not prev_done[agent_id]) and done[agent_id])", cioè non permettendogli di aggiornare quando ESATTAMENTE un treno
-                # arriva, ma semplicemente vedrà che sarà arrivato alla prossima obs che gli darò (cioè quando sarà necessaria una azione)
-                if ((not prev_done[agent_id]) and done[agent_id]) or info["action_required"][agent_id]:
-                    if self._accumulate_skipped_rewards:
-                        for handle in reward.keys():
-                            reward[handle] = reward[handle] + self._skipped_rewards[handle]
-                            self._skipped_rewards[handle] = 0
-                    return obs, reward, done, info
-                elif self._accumulate_skipped_rewards:
-                    self._skipped_rewards[agent_id] += reward[agent_id]
-                
-            if done['__all__']:
-                if self._accumulate_skipped_rewards:
-                    for handle in reward.keys():
-                        reward[handle] = reward[handle] + self._skipped_rewards[handle]
-                        self._skipped_rewards[handle] = 0
+            # exit if the episode has terminated
+            if done["__all__"]:
                 return obs, reward, done, info
             
-            # make agents take the default, DO_NOTHING, move at next step
+            # conditions for exiting because of the non-null custom reward function
+            for handle in info["state"].keys():
+                # 1. an agent has departed
+                if old_info["state"][handle] < TrainState.MOVING and info["state"][handle] >= TrainState.MOVING:
+                    return obs, reward, done, info
+                # 2. an agent has reached its target
+                if old_info["state"][handle] < TrainState.DONE and info["state"][handle] == TrainState.DONE:
+                    return obs, reward, done, info
+                
+            # 3. an agent has reached deadlock
+            old_deadlock_checker = copy.deepcopy(self.env.deadlock_checker)
+            old_deadlocks_count = sum(old_deadlock_checker.agent_deadlock)
+            self.env.deadlock_checker.update_deadlocks()
+            deadlocks_count = sum(self.env.deadlock_checker.agent_deadlock)
+            new_deadlocks = deadlocks_count - old_deadlocks_count
+
+            # IMPORTANT: reset the deadlock checker to the old one!
+            self.env.deadlock_checker = old_deadlock_checker
+
+            if new_deadlocks > 0:
+                return obs, reward, done, info
+                
+            # condition for exiting because at least one agent has a choice to make
+            for agent in self.env.agents:
+                if info["action_required"][agent.handle]:
+                    return obs, reward, done, info
+            
+            # otherwise: make agents take the default, DO_NOTHING, move at next step
             action_dict = {}
 
     def __getattr__(self, name):
