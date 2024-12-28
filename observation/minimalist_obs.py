@@ -10,8 +10,7 @@ from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 from utils.decision_cells import find_switches_and_switches_neighbors
 
 
-class FastTreeObs(ObservationBuilder):
-
+class MinimalistTreeObs(ObservationBuilder):
     def __init__(self, max_depth: Any):
         self.max_depth = max_depth
         self.observation_dim = 40
@@ -24,6 +23,7 @@ class FastTreeObs(ObservationBuilder):
         self.switches, self.switches_neighbors = find_switches_and_switches_neighbors(self.env)
 
     def _explore(self, handle, new_position, new_direction, distance_map, depth=0):
+        # TODO: comment better?
         has_opp_agent = 0
         has_same_agent = 0
         has_target = 0
