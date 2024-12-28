@@ -64,6 +64,9 @@ class RailEnvWrapper:
                 OR 
                 2) ...same as above... AND the agent is on a decision cell (i.e. a cell where the agent can choose its direction!)
 
+        Furthermore, if all agents are either done or in deadlock, the environment is set to terminate in the next step.
+        This early episode termination avoids useless computation and useless steps in the training batches.
+
         Args:
             action_dict (Dict[int, RailEnvActions]): the actions to take for each agent
 
@@ -78,6 +81,16 @@ class RailEnvWrapper:
                 info["action_required"][agent.handle] = self._on_decision_cell(agent)
         # TODO: action_required is false if the agent is in a deadlock?? Try it!    
 
+        # check if all agents are either done or in deadlock
+        all_done_or_deadlock = True
+        for agent in self.env.agents:
+            if agent.state != TrainState.DONE or not self.deadlock_checker.agent_deadlock[agent.handle]:
+                all_done_or_deadlock = False
+                break
+        # if so, set the environment to terminate in the next step
+        if all_done_or_deadlock:
+            self.env._elapsed_steps = self.env._max_episode_steps
+        
         return obs, reward, done, info
 
     def _on_decision_cell(self, agent: EnvAgent):
