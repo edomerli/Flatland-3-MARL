@@ -78,7 +78,7 @@ class RailEnvWrapper:
         # update action_required in the info dict
         for agent in self.env.agents:
             if info["action_required"][agent.handle] and (TrainState.MOVING <= agent.state <= TrainState.STOPPED):  # i.e. condition 2) above
-                info["action_required"][agent.handle] = self._on_decision_cell(agent) and not self.env.deadlock_checker.agent_deadlock[agent.handle]    # TODO: check che deadlock condition non peggiori performance 
+                info["action_required"][agent.handle] = self._on_decision_cell(agent) and not self.deadlock_checker.agent_deadlock[agent.handle]    # TODO: check che deadlock condition non peggiori performance 
 
         # check if all agents are either done or in deadlock
         all_done_or_deadlock = True
