@@ -26,7 +26,7 @@ class DeadlockChecker:
         for agent in self.env.agents:
             # check each "connected component" of active agents one by one
             if TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION and not self.agent_deadlock[agent.handle]:
-                self._check_and_build_graph(agent)
+                self._check_and_build_graph(agent, active_agents_positions)
 
         # propagate can_move to followers
         self._propagate_can_move()
@@ -36,7 +36,7 @@ class DeadlockChecker:
             if TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION and not self.can_move[agent.handle]:
                 self.agent_deadlock[agent.handle] = True
 
-    def _check_and_build_graph(self, agent):
+    def _check_and_build_graph(self, agent, active_agents_positions):
         possible_transitions = self.env.rail.get_transitions(*agent.position, agent.direction)
         num_transitions = fast_count_nonzero(possible_transitions)
         if num_transitions == 0:
@@ -51,7 +51,7 @@ class DeadlockChecker:
                 continue
 
             new_pos = get_new_position(agent.position, dir)
-            opposite_agent_handle = self.env.agent_positions[new_pos] if new_pos in self.env.agent_positions else -1
+            opposite_agent_handle = active_agents_positions[new_pos] if new_pos in active_agents_positions.keys() else -1
             if opposite_agent_handle == -1:
                 # no agent in the new position, the agent can move
                 self.can_move[agent.handle] = True
