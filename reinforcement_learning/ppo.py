@@ -115,17 +115,15 @@ class PPO:
 
             # compute custom reward and update old_info
             reward_timer.start()
-            custom_reward = self.env.custom_reward(done, reward, old_info, info)  # TODO: restore
-            # custom_reward = sum(reward.values())  # TODO: remove
+            custom_reward = self.env.custom_reward(done, old_info, info)
             old_info = info
             custom_rewards[step] = custom_reward
             self.custom_rewards_sum += custom_reward
             reward_timer.stop()
 
             # update next_obs and next_done
-            # next_obs = torch.tensor(next_obs)
             next_obs = dict_to_tensor(next_obs)
-            next_done = self.env.is_done(done, info)  # TODO: restore
+            next_done = self.env.is_done(done, info)
 
             if next_done:
                 # print(f"Episode done at step {self.env._elapsed_steps}/{self.env._max_episode_steps}")

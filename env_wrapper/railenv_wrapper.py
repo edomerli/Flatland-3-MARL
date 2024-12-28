@@ -63,9 +63,7 @@ class RailEnvWrapper:
     def __getattr__(self, name):
         return getattr(self.env, name)
 
-    def custom_reward(self, done, reward, old_info, info):
-        # normalized_reward = self.normalized_reward(done, reward)
-        
+    def custom_reward(self, done, old_info, info):        
         no_arrival_penalty = 0
         newly_departed_agents = 0
         newly_arrived_agents = 0
@@ -81,9 +79,6 @@ class RailEnvWrapper:
             if done["__all__"] and agent.state != TrainState.DONE:
                 no_arrival_penalty += self.env._handle_end_reward(agent)
 
-        # normalize no_arrival_penalty as the true episodic reward is computed
-        no_arrival_penalty = 1.0 + no_arrival_penalty / self.env.get_num_agents() / self.env._max_episode_steps 
-
         # count number of True values in self.deadlock_checker.agent_deadlock
         old_deadlocks_count = sum(self.deadlock_checker.agent_deadlock)
         self.deadlock_checker.update_deadlocks()
@@ -92,15 +87,9 @@ class RailEnvWrapper:
 
         N = self.env.get_num_agents()
 
-        # TODO: remove
-        assert new_deadlocks >= 0
-        if new_deadlocks > 0:
-            print(f"New deadlocks: {new_deadlocks}")
-
-        return no_arrival_penalty + 0.1 * (newly_departed_agents / N) + 5 * (newly_arrived_agents / N) - 2.5 * (new_deadlocks / N)
-        # return normalized_reward + 0.1 * (newly_departed_agents / N) + 5 * (newly_arrived_agents / N) - 2.5 * (new_deadlocks / N)
-        # return normalized_reward + 0.1 * (newly_departed_agents / N) + 5 * (newly_arrived_agents / N)
-        
+        # no_arrival_penalty is normalized in the same way that the true episodic reward is
+        return no_arrival_penalty / N / self.env._max_episode_steps + 0.1 * (newly_departed_agents / N) + 5 * (newly_arrived_agents / N) - 2.5 * (new_deadlocks / N)
+       
     def normalized_reward(self, done, reward):
         # if self.is_done(done, self.env.get_info_dict()):
         #     if not done["__all__"]: # TODO: this will always be True if we call normalized_reward at the end of the episode! No matter what!! Instead should use agent.state == TrainState.DONE
