@@ -125,8 +125,7 @@ class PPO:
             # update next_obs and next_done
             # next_obs = torch.tensor(next_obs)
             next_obs = dict_to_tensor(next_obs)
-            # next_done = self.env.is_done(done, info)  # TODO: restore
-            next_done = done["__all__"]
+            next_done = self.env.is_done(done, info)  # TODO: restore
 
             if next_done:
                 # print(f"Episode done at step {self.env._elapsed_steps}/{self.env._max_episode_steps}")
@@ -225,6 +224,15 @@ class PPO:
         n_datapoints = actions_required.sum(-1).nonzero().size(0)
         print(f"Number of datapoints with at least one agent that is required to act: {n_datapoints}/{self.iterations_timesteps}")
 
+        # TODO: introduce or remove, might be useful in env with more agents
+        # keep only the datapoints with at least one agent that is required to act
+        # selected_datapoints = actions_required.sum(-1).nonzero().squeeze()
+        # train_observations = observations[selected_datapoints]
+        # train_actions = actions[selected_datapoints]
+        # train_log_probs = log_probs[selected_datapoints]
+        # train_value_targets = value_targets[selected_datapoints]
+        # train_advantages = advantages[selected_datapoints]
+        # train_actions_required = actions_required[selected_datapoints]
 
         # timers
         train_timer = Timer()
@@ -232,9 +240,15 @@ class PPO:
 
         self.actor_critic.train()   # set the actor_critic to training mode
         epoch_indices = np.arange(self.iterations_timesteps)
+        # TODO: introduce or remove, might be useful in env with more agents
+        # epoch_indices = np.arange(n_datapoints)
+        # # round the number of datapoints to the nearest multiple of the batch size
+        # training_datapoints = n_datapoints // self.config.batch_size * self.config.batch_size
+        # assert training_datapoints > 0, "No datapoints with at least one agent that is required to act"
 
         for epoch in tqdm(range(self.config.epochs)):
             np.random.shuffle(epoch_indices)
+            # for start in range(0, training_datapoints, self.config.batch_size):
             for start in range(0, self.iterations_timesteps, self.config.batch_size):
                 end = start + self.config.batch_size
                 batch_indices = epoch_indices[start:end]
@@ -245,6 +259,14 @@ class PPO:
                 batch_value_targets = value_targets[batch_indices]
                 batch_advantages = advantages[batch_indices]
                 batch_actions_required = actions_required[batch_indices]
+
+                # TODO: introduce or remove
+                # batch_observations = train_observations[batch_indices]
+                # batch_actions = train_actions[batch_indices]
+                # batch_log_probs = train_log_probs[batch_indices]
+                # batch_value_targets = train_value_targets[batch_indices]
+                # batch_advantages = train_advantages[batch_indices]
+                # batch_actions_required = train_actions_required[batch_indices]
 
                 _, newlogprob, entropy, newvalues = self.actor_critic.action_and_value(batch_observations, action=batch_actions)
                 logratio = newlogprob - batch_log_probs

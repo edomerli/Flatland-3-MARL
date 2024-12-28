@@ -26,7 +26,7 @@ class ActorCritic:
         value = self.value_net(state)
 
         if self.normalize_v_targets:
-            # denormalize value -> TODO: da controllare di 1) volerlo fare 2) starlo facendo bene
+            # denormalize value -> TODO: controlla di starlo facendo bene, ma direi di si
             value = value * max(self.value_std, 1e-6) + self.value_mean
 
         return value
