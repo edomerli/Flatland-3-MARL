@@ -144,12 +144,11 @@ if __name__ == "__main__":
 
     ### NETWORK ###
     if config.network_architecture == "MLP":
-        policy_network = MLP(config.state_size, config.action_size, config.hidden_size, config.num_layers)  # TODO: write that ReLU performs MUCH worse here
+        policy_network = MLP(config.state_size, config.action_size, config.hidden_size, config.num_layers)
         value_network = MLP(config.state_size, 1, config.hidden_size, config.num_layers)
     elif config.network_architecture == "RailTransformer":
         policy_network = RailTranformer(config.state_size, config.action_size, config.hidden_size, config.num_layers, activation=nn.ReLU)
         value_network = RailTranformer(config.state_size, 1, config.hidden_size, config.num_layers, activation=nn.ReLU)
-        # TODO: voglio provare sia con Tanh che con ReLU, sono troppo curiosooo
     else:
         raise ValueError("Invalid network architecture. Must be one of [MLP, RailTransformer]")
 
