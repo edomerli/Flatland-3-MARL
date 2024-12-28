@@ -39,10 +39,10 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--env_size", help="The size of the environment to train on. Must be one of [demo, small, medium, large, huge]", default="small", type=str)
     parser.add_argument("--network_architecture", help="The network architecture to use. Must be one of [MLP, RailTransformer]", default="MLP", type=str)
-    parser.add_argument("--skip_no_choice_cells", help="Whether to skip cells where the agent has no choice", action="store_true")  # TODO: remove as it's shite!
+    parser.add_argument("--skip_no_choice_cells", help="Whether to skip cells where the agent has no choice\nWARNING: tests showed that training yields much worse performance with this option on", action="store_true")
     parser.add_argument("--normalize_v_targets", help="Whether to normalize the value targets", action="store_true")
     parser.add_argument("--log_video", help="Whether to log videos of the episodes to wandb", action="store_true")
-    # TODO: try with agents masking on/off
+    # TODO: try with agents masking on/off (really?)
     args = parser.parse_args()
 
     ### OBSERVATION ###
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         "eps_clip": 0.2,
         "entropy_bonus": 1e-2,
         "v_target": "TD-lambda",  # "TD-lambda" (for advantage + value) or "MC" (for cumulative reward)
-        "normalize_v_targets": args.normalize_v_targets,    # TODO: prova con questo OFF
+        "normalize_v_targets": args.normalize_v_targets,
 
         # Logging
         "batch_log_frequency": 10,    # how often to log batch stats
@@ -148,6 +148,7 @@ if __name__ == "__main__":
 
     ### WRAPPERS ###
     env = RailEnvWrapper(env) # IMPORTANT: env must be wrapped in RailEnvWrapper before any other wrapper
+    env.obs_builder.set_deadlock_checker(env.deadlock_checker)
 
     if config.skip_no_choice_cells:
         env = SkipNoChoiceWrapper(env)
@@ -157,12 +158,11 @@ if __name__ == "__main__":
 
     ### NETWORK ###
     if config.network_architecture == "MLP":
-        policy_network = MLP(config.state_size, config.action_size, config.hidden_size, config.num_layers)
+        policy_network = MLP(config.state_size, config.action_size, config.hidden_size, config.num_layers)  # TODO: write that ReLU performs MUCH worse here
         value_network = MLP(config.state_size, 1, config.hidden_size, config.num_layers)
-        # TODO: voglio provare sia con Tanh che con ReLU, sono troppo curiosooo
     elif config.network_architecture == "RailTransformer":
-        policy_network = RailTranformer(config.state_size, config.action_size, config.hidden_size, config.num_layers)
-        value_network = RailTranformer(config.state_size, 1, config.hidden_size, config.num_layers)
+        policy_network = RailTranformer(config.state_size, config.action_size, config.hidden_size, config.num_layers, activation=nn.ReLU)
+        value_network = RailTranformer(config.state_size, 1, config.hidden_size, config.num_layers, activation=nn.ReLU)
         # TODO: voglio provare sia con Tanh che con ReLU, sono troppo curiosooo
     else:
         raise ValueError("Invalid network architecture. Must be one of [MLP, RailTransformer]")
