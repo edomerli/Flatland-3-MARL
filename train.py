@@ -1,4 +1,3 @@
-import numpy as np
 import wandb
 from datetime import datetime
 from torch import nn
@@ -7,28 +6,15 @@ import os
 import pathlib
 from argparse import ArgumentParser, Namespace
 import json
-import yappi
-
-from flatland.envs.rail_env import RailEnv
-from flatland.envs.rail_generators import sparse_rail_generator
-from flatland.envs.malfunction_generators import ParamMalfunctionGen, MalfunctionParameters
-from flatland.envs.rail_generators import sparse_rail_generator
-from flatland.envs.line_generators import sparse_line_generator
-
 
 from utils.seeding import seed_everything
-# from utils.persister import load_env_from_pickle
-# from utils.logger import WandbLogger
 from utils.recorder import RecorderWrapper
 from utils.env_creator import create_train_env
 from network.rail_tranformer import RailTranformer
 from network.mlp import MLP
-# from reinforcement_learning.ppo import PPO
 from reinforcement_learning.actor_critic import ActorCritic
 from env_wrapper.railenv_wrapper import RailEnvWrapper
 from observation.minimalist_obs import MinimalistTreeObs
-
-# from stable_baselines3 import PPO
 from reinforcement_learning.ppo import PPO
 from env_wrapper.skip_no_choice_wrapper import SkipNoChoiceWrapper
 
@@ -78,7 +64,7 @@ if __name__ == "__main__":
         "epochs": 10,
         "batch_size": 128,
         "learning_rate": 2.5e-4,
-        "kl_limit": 0.02,
+        "kl_limit": 0.02 if args.network_architecture == "MLP" else 0.05,  # kl_limit is higher for RailTransformer
         "adam_eps": 1e-5,
         "device": torch.device("cuda" if torch.cuda.is_available() else "cpu"),
 

@@ -1,15 +1,16 @@
 import torch
+import torch.bin
 import numpy as np
 from tqdm import tqdm
 import wandb
+import yappi
 
-import torch.bin
+from flatland.envs.step_utils.states import TrainState
+
 from utils.conversions import dict_to_tensor, tensor_to_dict
 import utils.global_vars as global_vars
 from utils.timer import Timer
-from flatland.envs.step_utils.states import TrainState
 
-import yappi
 
 class PPO:
     def __init__(self, actor_critic, env, config, optimizer, scheduler):

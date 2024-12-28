@@ -4,10 +4,7 @@ from flatland.envs.agent_utils import TrainState
 from flatland.envs.rail_env import RailEnvActions
 from flatland.envs.rail_env import RailEnv
 from flatland.envs.agent_utils import EnvAgent
-from flatland.core.grid.grid4_utils import get_new_position
-from flatland.envs.fast_methods import fast_count_nonzero
 
-from utils.conversions import dict_to_tensor
 from utils.decision_cells import find_decision_cells
 from observation.deadlock_checker import DeadlockChecker
 

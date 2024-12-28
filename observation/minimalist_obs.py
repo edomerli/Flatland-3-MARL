@@ -4,7 +4,6 @@ import numpy as np
 from flatland.core.env_observation_builder import ObservationBuilder
 from flatland.core.grid.grid4_utils import get_new_position
 from flatland.envs.step_utils.states import TrainState
-from flatland.envs.rail_env import RailEnvActions
 from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 
 from utils.decision_cells import find_switches_and_switches_neighbors
@@ -190,25 +189,7 @@ class MinimalistTreeObs(ObservationBuilder):
                     return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
 
             # the switch refers to a switch where the agent *can* take a decision! Not any switch (i.e. maybe only for agents coming from other directions)
-            agents_on_switch, agents_near_to_switch, _, _ = self._on_or_near_switch(new_position, new_direction)
-
-            if agents_near_to_switch:
-                # agent is near to a switch, will choose once it gets there whether to stop or not, stop exploring
-                return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
-
-            # TODO: double check if by commenting this...
-            # if self.env.agents[handle].target in self.agents_target:
-            #     has_opp_target = 1
-            #     # continue exploring though!
-
-            # if self.env.agents[handle].target == new_position:
-            #     has_target = 1
-            #     return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
-
-            # TODO: ...and implementing it like this instead, it's better
-            # if self.env.agents[handle].target in self.agents_target:
-            #     has_opp_target = 1
-            #     # continue exploring though!
+            agents_on_switch, _, _, _ = self._on_or_near_switch(new_position, new_direction)
 
             if new_position == self.env.agents[handle].target:
                 has_target = 1
