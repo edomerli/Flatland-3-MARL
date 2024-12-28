@@ -127,7 +127,7 @@ class PPO:
 
             if next_done:
                 # print(f"Episode done at step {self.env._elapsed_steps}/{self.env._max_episode_steps}")
-                normalized_reward = self.env.normalized_reward(done, reward)
+                normalized_reward = self.env.normalized_reward(reward)
 
                 # N.B. cannot use done dict as a reference as the env sets it to True for all agents even if the environment terminated due to max_steps reached!
                 # instead, we have to rely on agent.state
