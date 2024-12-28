@@ -13,6 +13,15 @@ import yappi
 
 class PPO:
     def __init__(self, actor_critic, env, config, optimizer, scheduler):
+        """Proximal Policy Optimization (PPO) algorithm.
+
+        Args:
+            actor_critic (actor_critic.ActorCritic): the actor-critic model
+            env (RailEnv): the environment
+            config (dict): the configuration dictionary
+            optimizer (torch.optim): the optimizer
+            scheduler (torch.optim.lr_scheduler): the learning rate scheduler
+        """
         self.actor_critic = actor_critic
         self.env = env
         self.config = config
@@ -26,8 +35,9 @@ class PPO:
         self.custom_rewards_sum = 0
 
     def learn(self):
+        """Train the agent using PPO.
+        """
         next_obs, initial_info_dict = self.env.reset()
-        # next_obs = torch.tensor(next_obs)
         next_obs = dict_to_tensor(next_obs)
         next_done = False
 
@@ -210,14 +220,6 @@ class PPO:
         return advantages, value_targets
 
     def _train(self, observations, actions, log_probs, value_targets, advantages, actions_required):
-        # TODO remove
-        # print(f"Observations: {observations.shape} \n {observations[0]}")
-        # print(f"Actions: {actions.shape} \n {actions[0]}")
-        # print(f"Log_probs: {log_probs.shape} \n {log_probs[0]}")
-        # print(f"Value_targets: {value_targets.shape} \n {value_targets}")
-        # print(f"Advantages: {advantages.shape} \n {advantages}")
-        # exit()
-
         # count how many datapoints have at least one agent that is required to act
         n_datapoints = actions_required.sum(-1).nonzero().size(0)
         print(f"Number of datapoints with at least one agent that is required to act: {n_datapoints}/{self.iterations_timesteps}")
@@ -284,10 +286,6 @@ class PPO:
                 batch_advantages = (batch_advantages - batch_advantages.mean()) / (batch_advantages.std() + 1e-8)
                 # expand them to have the same value for each agent
                 batch_advantages = batch_advantages.unsqueeze(1).expand_as(ratio)
-                # TODO (nel caso in cui non mi tornino le performance): WARNING -> More than one element of an expanded tensor 
-                # may refer to a single memory location. As a result, in-place operations 
-                # (especially ones that are vectorized) may result in incorrect behavior. 
-                # If you need to write to the tensors, please clone them first.
 
                 # PPO LOSS
                 # Clipped surrogate loss (policy loss)
@@ -301,9 +299,6 @@ class PPO:
                 loss_value = 0.5 * (newvalues - batch_value_targets).pow(2).mean()
 
                 self.optimizer.zero_grad()
-                # TODO: test if doing the following is correct, or I have to do:
-                # loss = loss_policy + loss_value
-                # loss.backward()
                 loss_policy.backward()
                 loss_value.backward()
                 self.optimizer.step()
@@ -330,5 +325,10 @@ class PPO:
             train_timer.stop()
             wandb.log({"timer/train": train_timer.cumulative_elapsed(), "timer/step": global_vars.global_step})
         
-    def save(self, path):
-        torch.save(self.actor_critic.policy_state_dict(), path)
+    def save(self, policy_path, value_path):
+        torch.save(self.actor_critic.policy_state_dict(), policy_path)
+        torch.save(self.actor_critic.value_state_dict(), value_path)
+
+    def load(self, policy_path, value_path):
+        self.actor_critic.load_policy_state_dict(torch.load(policy_path))
+        self.actor_critic.load_value_state_dict(torch.load(value_path))

@@ -16,7 +16,6 @@ from flatland.envs.rail_generators import sparse_rail_generator
 from flatland.envs.line_generators import sparse_line_generator
 
 
-from utils.render import render_env
 from utils.seeding import seed_everything
 # from utils.persister import load_env_from_pickle
 # from utils.logger import WandbLogger
@@ -27,7 +26,7 @@ from network.mlp import MLP
 # from reinforcement_learning.ppo import PPO
 from reinforcement_learning.actor_critic import ActorCritic
 from env_wrapper.railenv_wrapper import RailEnvWrapper
-from observation.fast_tree_obs import FastTreeObs
+from observation.minimalist_obs import MinimalistTreeObs
 
 # from stable_baselines3 import PPO
 from reinforcement_learning.ppo import PPO
@@ -37,17 +36,17 @@ from env_wrapper.skip_no_choice_wrapper import SkipNoChoiceWrapper
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--env_size", help="The size of the environment to train on. Must be one of [demo, small, medium, large, huge]", default="small", type=str)
+    parser.add_argument("--env_size", help="The size of the environment to train on. Must be one of [demo, mini, small, medium, large, huge]", default="small", type=str)
     parser.add_argument("--network_architecture", help="The network architecture to use. Must be one of [MLP, RailTransformer]", default="MLP", type=str)
     parser.add_argument("--skip_no_choice_cells", help="Whether to skip cells where the agent has no choice\nWARNING: tests showed that training yields much worse performance with this option on", action="store_true")
     parser.add_argument("--normalize_v_targets", help="Whether to normalize the value targets", action="store_true")
+    parser.add_argument("--load_checkpoint_env", help="The environment size of the checkpoint to load. Must be one of [demo, mini, small, medium, large, huge]. The latest one with the compatible network_architecture will be loaded.", default="", type=str)
     parser.add_argument("--log_video", help="Whether to log videos of the episodes to wandb", action="store_true")
-    # TODO: try with agents masking on/off (really?)
     args = parser.parse_args()
 
     ### OBSERVATION ###
     TREE_OBS_DEPTH = 2
-    obs_builder = FastTreeObs(max_depth=TREE_OBS_DEPTH)
+    obs_builder = MinimalistTreeObs(max_depth=TREE_OBS_DEPTH)
 
     ### CONFIGURATION ###
     TOT_TIMESTEPS = 2**20    # approx 1M
@@ -73,6 +72,7 @@ if __name__ == "__main__":
         "action_size": 4,   # we choose to ignore the "DO_NOTHING" action (since semantically superfluous), and work only with "MOVE_LEFT", "MOVE_FORWARD", "MOVE_RIGHT" and "STOP"
         "hidden_size": 128,
         "num_layers": 3,
+        "load_checkpoint_env": args.load_checkpoint_env,
 
         # Training params
         "epochs": 10,
@@ -179,6 +179,16 @@ if __name__ == "__main__":
     ### TRAINING ###
     ppo = PPO(actor_critic, env, config, optimizer, scheduler)
 
+    if config.load_checkpoint_env != "":
+        try:
+            directory = pathlib.Path("weights").iterdir()
+            # filter only files containing the "policy" or "value" keyword, the same architecture type and the requested environment size, and get the latest one
+            latest_policy_checkpoint = max(filter(lambda x: f"policy_{config.network_architecture}_{config.load_checkpoint_env}" in str(x), directory), key=os.path.getctime)
+            latest_value_checkpoint = max(filter(lambda x: f"value_{config.network_architecture}_{config.load_checkpoint_env}" in str(x) and config.network_architecture in str(x), directory), key=os.path.getctime)
+            ppo.load(latest_policy_checkpoint, latest_value_checkpoint)
+        except:
+            print(f"Unable to load checkpoint {config.load_checkpoint_env}. Training from scratch.")
+
     ppo.learn()
 
     ### SAVE WEIGHTS AND CONFIG ###
@@ -186,13 +196,15 @@ if __name__ == "__main__":
         os.makedirs("weights")
 
     now = datetime.today().strftime('%Y%m%d-%H%M')
-    weights_path = f"weights/{now}_policy_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
-    ppo.save(weights_path)
-    print(f"Weights saved successfully at {weights_path}!")
+    policy_path = f"weights/{now}_policy_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
+    value_path = f"weights/{now}_value_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
+    ppo.save(policy_path, value_path)
+    print(f"Weights saved successfully at {policy_path} and {value_path}!")
 
     # save config as a json file
     config_path = f"weights/{now}_config_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.json"
-    CONFIG["weights_path"] = weights_path
+    CONFIG["policy_path"] = policy_path
+    CONFIG["value_path"] = value_path
     CONFIG["device"] = config.device.type   # convert device to string for json serialization
     with open(config_path, "w") as f:
         json.dump(CONFIG, f, indent=4)

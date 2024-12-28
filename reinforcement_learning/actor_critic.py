@@ -1,10 +1,14 @@
 import itertools
 
 class ActorCritic:
-    """
-    It contains the policy and value networks, and the methods call them and get actions/value estimates.
-    """
     def __init__(self, policy_network, value_network, config):
+        """Actor-Critic model. It is composed of a policy network and a value network.
+
+        Args:
+            policy_network (torch.nn.Module): the policy network
+            value_network (torch.nn.Module): the value network
+            config (dict): the configuration dictionary
+        """
         self.policy_net = policy_network
         self.value_net = value_network
 
@@ -15,23 +19,48 @@ class ActorCritic:
             self.value_std = 1
             self.values_count = 0
 
-    # act(), value() and action_and_value() are used during play, hence a single value (.item()) is returned
     def act(self, state):
+        """Get an action from the policy network (more precisely, an action for each agent). Used only at inference time, i.e. during actual play.
+
+        Args:
+            state (torch.nn.Tensor): the input state, of shape [batch_size, num_agents, state_size]
+
+        Returns:
+            action: the sampled action
+        """
         dist = self.policy_net(state)
         action = dist.sample()
 
-        return action.item()
+        return action
     
     def value(self, state):
+        """Get the value estimate from the value network.
+
+        Args:
+            state (torch.nn.Tensor): the input state, of shape [batch_size, num_agents, state_size]
+
+        Returns:
+            value: the value estimate
+        """
         value = self.value_net(state)
 
         if self.normalize_v_targets:
-            # denormalize value -> TODO: controlla di starlo facendo bene, ma direi di si
+            # denormalize value
             value = value * max(self.value_std, 1e-6) + self.value_mean
 
         return value
 
     def action_and_value(self, state, action=None, agents_mask=None):
+        """Using the policy network get a set of actions, their log probability and respective entropy. Also get the value estimate from the value network.
+
+        Args:
+            state (torch.nn.Tensor): the input state, of shape [batch_size, num_agents, state_size]
+            action (int, optional): the action of which to compute the log probability. If None, the action is sampled from the policy network's output distribution. Defaults to None.
+            agents_mask (torch.nn.Tensor, optional): the mask that specifies which agents are are required to act. Those that are not required to act will have their action set to 0. Defaults to None.
+
+        Returns:
+            action, log_prob, entropy, value: the sampled action, its log probability, the entropy of the policy distribution and the value estimate
+        """
         dist = self.policy_net(state)
         if action is None:
             action = dist.sample()
@@ -42,17 +71,6 @@ class ActorCritic:
         value = self.value(state)
 
         return action, dist.log_prob(action), dist.entropy(), value
-    
-    # TODO: remove
-    # actions_dist() and actions_dist_and_v() are used during training, hence the full distributions and values are returned
-    # def actions_dist(self, state):
-    #     return self.policy_net(state)
-    
-    # def actions_dist_and_v(self, state):
-    #     dist = self.policy_net(state)
-    #     value = self.value_net(state)
-
-    #     return dist, value
       
     def to(self, device):
         self.policy_net.to(device)
@@ -70,7 +88,11 @@ class ActorCritic:
         return itertools.chain(self.policy_net.parameters(), self.value_net.parameters())
 
     def update_v_target_stats(self, v_targets):
-        """If normalize_v_targets is True, will be called to update the mean and std of value targets. This is used to normalize value targets during training."""
+        """If normalize_v_targets is True, will be called to update the mean and std of value targets. This is used to normalize value targets during training.
+        
+        Args:
+            v_targets (torch.nn.Tensor): the value targets, of shape [batch_size]
+        """
         new_values_count = self.values_count + len(v_targets)
         
         self.value_mean = self.value_mean * (self.values_count / (new_values_count + 1e-6)) + v_targets.mean() * (len(v_targets) / (new_values_count + 1e-6))
@@ -80,5 +102,11 @@ class ActorCritic:
     def policy_state_dict(self):
         return self.policy_net.state_dict()
     
+    def value_state_dict(self):
+        return self.value_net.state_dict()
+    
     def load_policy_state_dict(self, state_dict):
         self.policy_net.load_state_dict(state_dict)
+
+    def load_value_state_dict(self, state_dict):
+        self.value_net.load_state_dict(state_dict)

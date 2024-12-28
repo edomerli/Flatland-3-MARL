@@ -127,7 +127,7 @@ class RailEnvWrapper:
                 newly_departed_agents += 1
             if old_info["state"][handle] < TrainState.DONE and info["state"][handle] == TrainState.DONE:
                 newly_arrived_agents += 1 - max(agent.arrival_time - agent.latest_arrival, 0) / self.env._max_episode_steps
-            if done["__all__"] and agent.state != TrainState.DONE:  # TODO: se aggiungi fine prima del tempo, be aware of this done["__all__"]
+            if done["__all__"] and agent.state != TrainState.DONE:
                 no_arrival_penalty += self.env._handle_end_reward(agent)
 
         # count number of True values in self.deadlock_checker.agent_deadlock

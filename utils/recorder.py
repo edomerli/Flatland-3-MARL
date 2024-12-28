@@ -4,9 +4,8 @@ import numpy as np
 import utils.global_vars as global_vars
 
 class RecorderWrapper():
-    """Custom wrapper for recording episodes as videos in wandb."""
     def __init__(self, env, episode_frequency_rec):
-        """Constructor
+        """Custom wrapper for recording episodes as videos in wandb.
 
         Args:
             env (flatland.envs.rail_env.RailEnv): the environment to wrap

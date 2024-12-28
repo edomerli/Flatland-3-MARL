@@ -55,6 +55,14 @@ def find_switches_and_switches_neighbors(rail_env: RailEnv):
     return switches, switches_neighbors
 
 def find_decision_cells(rail_env: RailEnv):
+    """Find all cells where the agent can choose an action.
+
+    Args:
+        rail_env (RailEnv): the environment of which to find the decision cells
+
+    Returns:
+        decision_cells: a dictionary where the keys are the directions and the values are sets of cells where agents coming from that direction can choose between more than one action.
+    """
     switches, switches_neighbors = find_switches_and_switches_neighbors(rail_env)
     
     # combine switches and switches_neighbors to get decision cells

@@ -17,18 +17,19 @@ python train.py
 ```
 which takes the following command line arguments:
 ```
-usage: train.py [-h] [--env_size ENV_SIZE] [--network_architecture NETWORK_ARCHITECTURE] [--skip_no_choice_cells] [--normalize_v_targets]
-                [--log_video]
+usage: train.py [-h] [--env_size ENV_SIZE] [--network_architecture NETWORK_ARCHITECTURE] [--skip_no_choice_cells] [--normalize_v_targets] [--load_checkpoint_env LOAD_CHECKPOINT_ENV] [--log_video]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --env_size ENV_SIZE   The size of the environment to train on. Must be one of [demo, small, medium, large, huge]
+  --env_size ENV_SIZE   The size of the environment to train on. Must be one of [demo, mini, small, medium, large, huge]
   --network_architecture NETWORK_ARCHITECTURE
                         The network architecture to use. Must be one of [MLP, RailTransformer]
   --skip_no_choice_cells
                         Whether to skip cells where the agent has no choice
   --normalize_v_targets
                         Whether to normalize the value targets
+  --load_checkpoint_env LOAD_CHECKPOINT_ENV
+                        The environment size of the checkpoint to load. Must be one of [demo, mini, small, medium, large, huge]. The latest one with the compatible network_architecture will be loaded.
   --log_video           Whether to log videos of the episodes to wandb
 ```
 

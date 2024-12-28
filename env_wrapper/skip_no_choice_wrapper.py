@@ -5,7 +5,7 @@ from collections import defaultdict
 import copy
 
 
-# TODO: remove!
+# TODO: correct it and test with it
 class SkipNoChoiceWrapper:
     def __init__(self, env: RailEnv, accumulate_skipped_rewards=True):
         self.env = env

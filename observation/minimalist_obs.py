@@ -12,18 +12,151 @@ from utils.decision_cells import find_switches_and_switches_neighbors
 
 class MinimalistTreeObs(ObservationBuilder):
     def __init__(self, max_depth: Any):
+        """Minimalist Tree Observation Builder.
+
+        Args:
+            max_depth (int): the maximum depth to explore the tree
+        """
         self.max_depth = max_depth
         self.observation_dim = 40
         self.deadlock_checker = None
 
     def set_deadlock_checker(self, deadlock_checker):
+        """Set the deadlock checker.
+
+        Args:
+            deadlock_checker (deadlock_checker.DeadlockChecker): the deadlock checker to use
+        """
         self.deadlock_checker = deadlock_checker
 
     def reset(self):
+        """Reset the observation builder.
+        """
         self.switches, self.switches_neighbors = find_switches_and_switches_neighbors(self.env)
 
+    def get_many(self, handles: Optional[List[int]] = None):
+        """Get the observations for a list of agents.
+
+        Args:
+            handles (Optional[List[int]], optional): the list of agents's handles for which to compute the observations. Defaults to None.
+
+        Returns:
+            observations: the list of observations for the agents
+        """
+        self.agents_target = self._get_moving_agents_targets()
+        observations = super().get_many(handles)
+        return observations
+
+    def get(self, handle: int = 0):
+        """Get the observation for an agent.
+
+        An observation is defined as following (all values are BINARY):
+        - observation[0-6]: the agent's state (one-hot encoded)
+        - observation[7]: current agent is located at a switch, where it can take a routing decision
+        - observation[8]: current agent is located at a switch, could be either a switch where it can take a decision or not (i.e. only one path)
+        - observation[9]: current agent is located one step *before* a switch, at which switch it can take a routing decision
+        - observation[10]: current agent is located one step *before* a switch, could be either a switch where it can take a decision or not (i.e. only one path)
+        - observation[11-14]: for each direction, whether there is a path towards the target (one-hot encoded)
+        - observation[15-18]: for each direction, whether the path takes us closer to the target (one-hot encoded) (0 if the path is longer or there is no path)
+        - observation[19-22]: for each direction, whether there is a path and there is an agent with opposite direction OR an agent with same direction but in a deadlock on this path (one-hot encoded)
+        - observation[23-26]: for each direction, whether there is a path and there is an agent with same direction AND not in a deadlock on this path (one-hot encoded)
+        - observation[27-30]: for each direction, whether there is a path and the agent's target is on this path (one-hot encoded)
+        - observation[31-34]: for each direction, whether there is a path and there is another agent's target on this path (one-hot encoded)
+        - observation[35-38]: the agent's speed (one-hot encoded)
+        - observation[39]: whether the agent is deadlocked
+        
+        Args:
+            handle (int, optional): the handle of the agent for which to compute the observation. Defaults to 0.
+
+        Returns:
+            observation: the observation for the agent
+        """
+        observation = np.zeros(self.observation_dim)
+        visited = []
+        agent = self.env.agents[handle]
+
+        # compute the agent's virtual position
+        agent_done = False
+        if TrainState.WAITING <= agent.state <= TrainState.MALFUNCTION_OFF_MAP:
+            agent_virtual_position = agent.initial_position
+        elif TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION:
+            agent_virtual_position = agent.position
+        else:   # i.e. agent.state == TrainState.DONE
+            agent_virtual_position = (-1, -1)
+            agent_done = True
+        # observation[0-6]: the agent's state (one-hot encoded)
+        observation[agent.state] = 1
+
+        # the rest of the observation is computed only if the agent is not done!
+        if not agent_done:
+            # compute current distance and adjust orientation if the next direction is already defined because it's the only possible transition
+            visited.append(agent_virtual_position)
+            distance_map = self.env.distance_map.get()
+            current_cell_dist = distance_map[handle,
+                                             agent_virtual_position[0], agent_virtual_position[1],
+                                             agent.direction]
+            possible_transitions = self.env.rail.get_transitions(*agent_virtual_position, agent.direction)
+            orientation = agent.direction
+            if fast_count_nonzero(possible_transitions) == 1:
+                orientation = fast_argmax(possible_transitions)
+
+            # compute the observation's features for each direction (-1: left, 0: forward, 1: right, 2: backward - at dead-ends)
+            for dir_loop, branch_direction in enumerate([(orientation + dir_loop) % 4 for dir_loop in range(-1, 3)]):
+                # consider only the directions that can be taken
+                if possible_transitions[branch_direction]:
+                    new_position = get_new_position(agent_virtual_position, branch_direction)
+                    new_cell_dist = distance_map[handle,
+                                                 new_position[0], new_position[1],
+                                                 branch_direction]
+                    # observation[15-18]: for each direction, whether the path takes us closer to the target (one-hot encoded) (0 if the path is longer or there is no path)
+                    if not (np.math.isinf(new_cell_dist) and np.math.isinf(current_cell_dist)):
+                        observation[16 + dir_loop] = int(new_cell_dist < current_cell_dist)
+
+                    has_opp_agent, has_same_agent, has_target, has_opp_target, v, min_dist = self._explore(handle,
+                                                                                                           new_position,
+                                                                                                           branch_direction,
+                                                                                                           distance_map)
+                    visited.append(v)
+
+                    # observation[11-14]: for each direction, whether there is a path towards the target (one-hot encoded)
+                    if not (np.math.isinf(min_dist) and np.math.isinf(current_cell_dist)):
+                        observation[12 + dir_loop] = int(min_dist < current_cell_dist)
+                    # observation[19-22]: for each direction, whether there is a path and there is an agent with opposite direction on this path (one-hot encoded)
+                    # observation[23-26]: for each direction, whether there is a path and there is an agent with same direction on this path (one-hot encoded)
+                    # observation[27-30]: for each direction, whether there is a path and the agent's target is on this path (one-hot encoded)
+                    # observation[31-34]: for each direction, whether there is a path and there is another agent's target on this path (one-hot encoded)
+                    observation[20 + dir_loop] = has_opp_agent
+                    observation[24 + dir_loop] = has_same_agent
+                    observation[28 + dir_loop] = has_target
+                    observation[32 + dir_loop] = has_opp_target
+
+            agents_on_switch, \
+            agents_near_to_switch, \
+            agents_near_to_switch_all, \
+            agents_on_switch_all = \
+                self._on_or_near_switch(agent_virtual_position, agent.direction)
+
+            # observation[7]: current agent is located at a switch, where it can take a routing decision
+            # observation[8]: current agent is located at a switch, could be either a switch where it can take a decision or not (i.e. only one path)
+            # observation[9]: current agent is located one step *before* a switch, at which switch it can take a routing decision
+            # observation[10]: current agent is located one step *before* a switch, could be either a switch where it can take a decision or not (i.e. only one path)
+            observation[7] = int(agents_on_switch)
+            observation[8] = int(agents_on_switch_all)
+            observation[9] = int(agents_near_to_switch)
+            observation[10] = int(agents_near_to_switch_all)
+
+            # observation[35-38]: the agent's speed (one-hot encoded)
+            observation[35 + agent.speed_counter.max_count] = 1     # max_count = int(1.0 / speed) - 1, i.e. 0 if speed==1, 1 if speed==0.5, 2 if speed==0.33, 3 if speed==0.25
+            
+            # observation[39]: whether the agent is deadlocked
+            observation[39] = self.deadlock_checker.agent_deadlock[handle]
+
+        observation[np.isinf(observation)] = -1
+        observation[np.isnan(observation)] = -1
+
+        return observation
+    
     def _explore(self, handle, new_position, new_direction, distance_map, depth=0):
-        # TODO: comment better?
         has_opp_agent = 0
         has_same_agent = 0
         has_target = 0
@@ -35,44 +168,54 @@ class MinimalistTreeObs(ObservationBuilder):
         if depth >= self.max_depth:
             return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
 
-        # max_explore_steps = 100 -> just to ensure that the exploration ends
+        # we at most explore 100 cells
         cnt = 0
         while cnt < 100:
             cnt += 1
 
             visited.append(new_position)
-            opp_a = self.env.agent_positions[new_position]
-            if opp_a != -1 and opp_a != handle:
-                if self.env.agents[opp_a].direction != new_direction:
-                    # opp agent found -> stop exploring. This would be a strong signal.
+            opp_agent = self.env.agent_positions[new_position]
+            if opp_agent != -1 and opp_agent != handle:
+                if self.env.agents[opp_agent].direction != new_direction:
+                    # agent with opposite direction found, stop exploring
                     has_opp_agent = 1
                     return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
                 else:
-                    # same agent found
-                    # the agent can follow the agent, because this agent is still moving ahead and there shouldn't
-                    # be any dead-lock nor other issue -> agent is just walking -> if other agent has a deadlock
-                    # this should be avoided by other agents -> one edge case would be when other agent has it's
-                    # target on this branch -> thus the agents should scan further whether there will be an opposite
-                    # agent walking on same track
-                    has_same_agent = 1
-                    # !NOT stop exploring!
+                    # agent with the same direction found, stop exploring
+                    # NOTE: we consider an agent with the same direction but deadlocked as an agent with opposite direction!
+                    if self.deadlock_checker.agent_deadlock[opp_agent]:
+                        has_opp_agent = 1
+                    else:
+                        has_same_agent = 1
                     return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
 
-            # agents_on_switch == TRUE -> Current cell is a switch where the agent can decide (branch) in exploration
-            # agent_near_to_switch == TRUE -> One cell before the switch, where the agent can decide
+            # the switch refers to a switch where the agent *can* take a decision! Not any switch (i.e. maybe only for agents coming from other directions)
             agents_on_switch, agents_near_to_switch, _, _ = self._on_or_near_switch(new_position, new_direction)
 
             if agents_near_to_switch:
-                # The exploration was walking on a path where the agent can not decide
-                # Best option would be MOVE_FORWARD -> Skip exploring - just walking
+                # agent is near to a switch, will choose once it gets there whether to stop or not, stop exploring
                 return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
 
-            if self.env.agents[handle].target in self.agents_target:
-                has_opp_target = 1
+            # TODO: double check if by commenting this...
+            # if self.env.agents[handle].target in self.agents_target:
+            #     has_opp_target = 1
+            #     # continue exploring though!
 
-            if self.env.agents[handle].target == new_position:
+            # if self.env.agents[handle].target == new_position:
+            #     has_target = 1
+            #     return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
+
+            # TODO: ...and implementing it like this instead, it's better
+            # if self.env.agents[handle].target in self.agents_target:
+            #     has_opp_target = 1
+            #     # continue exploring though!
+
+            if new_position == self.env.agents[handle].target:
                 has_target = 1
                 return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
+            elif new_position in self.agents_target:
+                has_opp_target = 1
+                # continue exploring though!
 
             possible_transitions = self.env.rail.get_transitions(*new_position, new_direction)
             if agents_on_switch:
@@ -84,8 +227,6 @@ class MinimalistTreeObs(ObservationBuilder):
                 for dir_loop, branch_direction in enumerate(
                         [(orientation + dir_loop) % 4 for dir_loop in range(-1, 3)]):
                     # branch the exploration path and aggregate the found information
-                    # --- OPEN RESEARCH QUESTION ---> is this good or shall we use full detailed information as
-                    # we did in the TreeObservation (FLATLAND) ?
                     if possible_transitions[dir_loop] == 1:
                         hoa, hsa, ht, hot, v, m_dist = self._explore(handle,
                                                                      get_new_position(new_position, dir_loop),
@@ -106,125 +247,6 @@ class MinimalistTreeObs(ObservationBuilder):
             min_dist = min(min_dist, distance_map[handle, new_position[0], new_position[1], new_direction])
 
         return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
-
-    def get_many(self, handles: Optional[List[int]] = None):
-        # self.dead_lock_avoidance_agent.start_step(False)
-        self.agents_target = self._get_moving_agents_targets()  #get_agent_targets(self.env)
-        observations = super().get_many(handles)
-        # self.dead_lock_avoidance_agent.end_step(False)
-        return observations
-
-    def get(self, handle: int = 0):
-        # TODO: reorder these?? Like state first etc.
-        # all values are [0,1]
-        # observation[0]  : 1 path towards target (direction 0) / otherwise 0 -> path is longer or there is no path
-        # observation[1]  : 1 path towards target (direction 1) / otherwise 0 -> path is longer or there is no path
-        # observation[2]  : 1 path towards target (direction 2) / otherwise 0 -> path is longer or there is no path
-        # observation[3]  : 1 path towards target (direction 3) / otherwise 0 -> path is longer or there is no path
-        # observation[4]  : int(agent.state == TrainState.WAITING)
-        # observation[5]  : int(agent.state == TrainState.READY_TO_DEPART)
-        # observation[6]  : int(agent.state == TrainState.MALFUNCTION_OFF_MAP)
-        # observation[7]  : int(agent.state == TrainState.MOVING)
-        # observation[8]  : int(agent.state == TrainState.STOPPED)
-        # observation[9]  : int(agent.state == TrainState.MALFUNCTION)
-        # observation[10] : int(agent.state == TrainState.DONE)
-        # observation[11] : current agent is located at a switch, where it can take a routing decision
-        # observation[12] : current agent is located at a switch, could be either a switch where it can take a decision or not (i.e. only one path)
-        # observation[13] : current agent is located one step before/after a switch, where it can take a routing decision
-        # observation[14] : current agent is located one step before/after a switch, could be either a switch where it can take a decision or not (i.e. only one path)
-        # observation[15] : 1 if there is a path (track/branch) otherwise 0 (direction 0)
-        # observation[16] : 1 if there is a path (track/branch) otherwise 0 (direction 1)
-        # observation[17] : 1 if there is a path (track/branch) otherwise 0 (direction 2)
-        # observation[18] : 1 if there is a path (track/branch) otherwise 0 (direction 3)
-        # observation[19] : If there is a path with step (direction 0) and there is a agent with opposite direction -> 1
-        # observation[20] : If there is a path with step (direction 1) and there is a agent with opposite direction -> 1
-        # observation[21] : If there is a path with step (direction 2) and there is a agent with opposite direction -> 1
-        # observation[22] : If there is a path with step (direction 3) and there is a agent with opposite direction -> 1
-        # observation[23] : If there is a path with step (direction 0) and there is a agent with same direction -> 1
-        # observation[24] : If there is a path with step (direction 1) and there is a agent with same direction -> 1
-        # observation[25] : If there is a path with step (direction 2) and there is a agent with same direction -> 1
-        # observation[26] : If there is a path with step (direction 3) and there is a agent with same direction -> 1
-        # observation[27] : If there is a path with step (direction 0) and the target is on this path -> 1
-        # observation[28] : If there is a path with step (direction 1) and the target is on this path -> 1
-        # observation[29] : If there is a path with step (direction 2) and the target is on this path -> 1
-        # observation[30] : If there is a path with step (direction 3) and the target is on this path -> 1
-        # observation[31] : If there is a path with step (direction 0) and there is another agent's target on this path -> 1
-        # observation[32] : If there is a path with step (direction 1) and there is another agent's target on this path -> 1
-        # observation[33] : If there is a path with step (direction 2) and there is another agent's target on this path -> 1
-        # observation[34] : If there is a path with step (direction 3) and there is another agent's target on this path -> 1
-        # observation[35] : Agent's speed == 1
-        # observation[36] : Agent's speed == 0.5
-        # observation[37] : Agent's speed == 0.33
-        # observation[38] : Agent's speed == 0.25
-        # observation[39] : If agent is deadlocked
-
-        observation = np.zeros(self.observation_dim)
-        visited = []
-        agent = self.env.agents[handle]
-
-        agent_done = False
-        if TrainState.WAITING <= agent.state <= TrainState.MALFUNCTION_OFF_MAP:
-            agent_virtual_position = agent.initial_position
-        elif TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION:
-            agent_virtual_position = agent.position
-        else:   # i.e. agent.state == TrainState.DONE
-            agent_virtual_position = (-1, -1)
-            agent_done = True
-        observation[4 + agent.state] = 1
-
-        if not agent_done:
-            visited.append(agent_virtual_position)
-            distance_map = self.env.distance_map.get()
-            current_cell_dist = distance_map[handle,
-                                             agent_virtual_position[0], agent_virtual_position[1],
-                                             agent.direction]
-            possible_transitions = self.env.rail.get_transitions(*agent_virtual_position, agent.direction)
-            orientation = agent.direction
-            if fast_count_nonzero(possible_transitions) == 1:
-                orientation = fast_argmax(possible_transitions)
-
-            for dir_loop, branch_direction in enumerate([(orientation + dir_loop) % 4 for dir_loop in range(-1, 3)]):
-                if possible_transitions[branch_direction]:
-                    new_position = get_new_position(agent_virtual_position, branch_direction)
-                    new_cell_dist = distance_map[handle,
-                                                 new_position[0], new_position[1],
-                                                 branch_direction]
-                    if not (np.math.isinf(new_cell_dist) and np.math.isinf(current_cell_dist)):
-                        observation[1 + dir_loop] = int(new_cell_dist < current_cell_dist)
-
-                    has_opp_agent, has_same_agent, has_target, has_opp_target, v, min_dist = self._explore(handle,
-                                                                                                           new_position,
-                                                                                                           branch_direction,
-                                                                                                           distance_map)
-                    visited.append(v)
-
-                    if not (np.math.isinf(min_dist) and np.math.isinf(current_cell_dist)):
-                        observation[16 + dir_loop] = int(min_dist < current_cell_dist)
-                    observation[20 + dir_loop] = has_opp_agent
-                    observation[24 + dir_loop] = has_same_agent
-                    observation[28 + dir_loop] = has_target
-                    observation[32 + dir_loop] = has_opp_target
-
-            agents_on_switch, \
-            agents_near_to_switch, \
-            agents_near_to_switch_all, \
-            agents_on_switch_all = \
-                self._on_or_near_switch(agent_virtual_position, agent.direction)
-
-            observation[11] = int(agents_on_switch)
-            observation[12] = int(agents_on_switch_all)
-            observation[13] = int(agents_near_to_switch)
-            observation[14] = int(agents_near_to_switch_all)
-
-            observation[35 + agent.speed_counter.max_count] = 1     # max_count = int(1.0 / speed) - 1, i.e. 0 if speed==1, 1 if speed==0.5, 2 if speed==0.33, 3 if speed==0.25
-            observation[39] = self.deadlock_checker.agent_deadlock[handle]
-
-        self.env.dev_obs_dict.update({handle: visited})
-
-        observation[np.isinf(observation)] = -1
-        observation[np.isnan(observation)] = -1
-
-        return observation
     
     def _on_or_near_switch(self, position, direction):
         agent_on_switch = position in self.switches[direction]
