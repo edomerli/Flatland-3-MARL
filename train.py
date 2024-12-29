@@ -14,7 +14,7 @@ from network.rail_tranformer import RailTranformer
 from network.mlp import MLP
 from reinforcement_learning.actor_critic import ActorCritic
 from env_wrapper.railenv_wrapper import RailEnvWrapper
-from observation.minimalist_obs import MinimalistTreeObs
+from observation.binary_obs import BinaryTreeObs
 from reinforcement_learning.ppo import PPO
 from env_wrapper.skip_no_choice_wrapper import SkipNoChoiceWrapper
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     ### OBSERVATION ###
     TREE_OBS_DEPTH = 2
-    obs_builder = MinimalistTreeObs(max_depth=TREE_OBS_DEPTH)
+    obs_builder = BinaryTreeObs(max_depth=TREE_OBS_DEPTH)
 
     ### CONFIGURATION ###
     TOT_TIMESTEPS = 2**20    # approx 1M

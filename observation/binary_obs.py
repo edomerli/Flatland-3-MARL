@@ -9,9 +9,9 @@ from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 from utils.decision_cells import find_switches_and_switches_neighbors
 
 
-class MinimalistTreeObs(ObservationBuilder):
+class BinaryTreeObs(ObservationBuilder):
     def __init__(self, max_depth: Any):
-        """Minimalist Tree Observation Builder.
+        """Binary Tree Observation Builder.
 
         Args:
             max_depth (int): the maximum depth to explore the tree
