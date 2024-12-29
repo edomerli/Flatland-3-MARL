@@ -4,6 +4,9 @@ Project of the course Multi-Agent Systems of Artificial Intelligence @ Universit
 In this repo, I implemented PPO from scratch and used it on the Multi-Agent [Flatland 3](https://www.aicrowd.com/challenges/flatland-3) challenge.
 
 ## Setup
+> [!WARNING]
+> Flatland works only on Linux, MacOS or Windows using WSL 2.
+
 To create the environment, [install conda](https://www.anaconda.com/download) and then run
 ```
 conda env create -f environment.yml
@@ -29,7 +32,7 @@ optional arguments:
   --normalize_v_targets
                         Whether to normalize the value targets
   --load_checkpoint_env LOAD_CHECKPOINT_ENV
-                        The environment size of the checkpoint to load. Must be one of [demo, mini, small, medium, large, huge]. The latest one with the compatible network_architecture will be loaded.
+                        The environment size of the checkpoint to load. Must be one of [demo, mini, small, medium, large, huge]. The latest one with the compatible network_architecture will be loaded from the weights folder.
   --log_video           Whether to log videos of the episodes to wandb
 ```
 
