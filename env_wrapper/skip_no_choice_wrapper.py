@@ -5,9 +5,22 @@ import copy
 
 class SkipNoChoiceWrapper:
     def __init__(self, env: RailEnv):
+        """Wraps a flatland environment to skip steps where no agent has a choice to make.
+
+        Args:
+            env (RailEnv): the flatland environment to wrap
+        """
         self.env = env
     
     def step(self, action_dict):
+        """Step the environment with the given actions. Skips steps where no agent has a choice to make.
+
+        Args:
+            action_dict (dict): the dictionary of actions to take in the first step
+
+        Returns:
+            obs, reward, done, info: the observation, reward, done flag and info dict from the environment
+        """
         while True:
             old_info = self.env.get_info_dict()
             obs, reward, done, info = self.env.step(action_dict)
