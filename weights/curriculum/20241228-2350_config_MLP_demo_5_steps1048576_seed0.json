@@ -29,6 +29,6 @@
     "wandb": true,
     "profiling": false,
     "seed": 0,
-    "policy_path": "weights/20241228-2350_policy_MLP_demo_5_steps1048576_seed0.pt",
-    "value_path": "weights/20241228-2350_value_MLP_demo_5_steps1048576_seed0.pt"
+    "policy_path": "weights/scratch/20241228-2350_policy_MLP_demo_5_steps1048576_seed0.pt",
+    "value_path": "weights/scratch/20241228-2350_value_MLP_demo_5_steps1048576_seed0.pt"
 }

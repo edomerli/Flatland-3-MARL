@@ -166,29 +166,38 @@ if __name__ == "__main__":
 
     if config.load_checkpoint_env != "":
         try:
-            directory = list(pathlib.Path("weights").iterdir())
+            directory = list(pathlib.Path("weights/curriculum").iterdir())
             # filter only files containing the "policy" or "value" keyword, the same architecture type and the requested environment size, and get the latest one
             latest_policy_checkpoint = max(filter(lambda x: f"policy_{config.network_architecture}_{config.load_checkpoint_env}" in str(x), directory), key=os.path.getctime)
             latest_value_checkpoint = max(filter(lambda x: f"value_{config.network_architecture}_{config.load_checkpoint_env}" in str(x) and config.network_architecture in str(x), directory), key=os.path.getctime)
             ppo.load(latest_policy_checkpoint, latest_value_checkpoint)
             print(f"Checkpoint loaded successfully from {latest_policy_checkpoint} and {latest_value_checkpoint}")
+            subfolder = "curriculum"
         except:
             print(f"Unable to load checkpoint {config.load_checkpoint_env}. Training from scratch.")
+            subfolder = "scratch"
+    else:
+        print("Training from scratch.")
+        subfolder = "scratch"
 
     ppo.learn()
 
     ### SAVE WEIGHTS AND CONFIG ###
     if not os.path.exists("weights"):
         os.makedirs("weights")
+    if not os.path.exists("weights/scratch"):
+        os.makedirs("weights/scratch")
+    if not os.path.exists("weights/curriculum"):
+        os.makedirs("weights/curriculum")
 
     now = datetime.today().strftime('%Y%m%d-%H%M')
-    policy_path = f"weights/{now}_policy_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
-    value_path = f"weights/{now}_value_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
+    policy_path = f"weights/{subfolder}/{now}_policy_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
+    value_path = f"weights/{subfolder}/{now}_value_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
     ppo.save(policy_path, value_path)
     print(f"Weights saved successfully at {policy_path} and {value_path}!")
 
     # save config as a json file
-    config_path = f"weights/{now}_config_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.json"
+    config_path = f"weights/{subfolder}/{now}_config_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.json"
     CONFIG["policy_path"] = policy_path
     CONFIG["value_path"] = value_path
     CONFIG["device"] = config.device.type   # convert device to string for json serialization
