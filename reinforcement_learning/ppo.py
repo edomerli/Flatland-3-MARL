@@ -331,5 +331,5 @@ class PPO:
         torch.save(self.actor_critic.value_state_dict(), value_path)
 
     def load(self, policy_path, value_path):
-        self.actor_critic.load_policy_state_dict(torch.load(policy_path))
-        self.actor_critic.load_value_state_dict(torch.load(value_path))
+        self.actor_critic.load_policy_state_dict(torch.load(policy_path, weights_only=True))
+        self.actor_critic.load_value_state_dict(torch.load(value_path, weights_only=True))

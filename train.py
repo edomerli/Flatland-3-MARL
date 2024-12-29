@@ -166,11 +166,12 @@ if __name__ == "__main__":
 
     if config.load_checkpoint_env != "":
         try:
-            directory = pathlib.Path("weights").iterdir()
+            directory = list(pathlib.Path("weights").iterdir())
             # filter only files containing the "policy" or "value" keyword, the same architecture type and the requested environment size, and get the latest one
             latest_policy_checkpoint = max(filter(lambda x: f"policy_{config.network_architecture}_{config.load_checkpoint_env}" in str(x), directory), key=os.path.getctime)
             latest_value_checkpoint = max(filter(lambda x: f"value_{config.network_architecture}_{config.load_checkpoint_env}" in str(x) and config.network_architecture in str(x), directory), key=os.path.getctime)
             ppo.load(latest_policy_checkpoint, latest_value_checkpoint)
+            print(f"Checkpoint loaded successfully from {latest_policy_checkpoint} and {latest_value_checkpoint}")
         except:
             print(f"Unable to load checkpoint {config.load_checkpoint_env}. Training from scratch.")
 
