@@ -6,6 +6,7 @@ pandas==2.0.3
 Pillow==11.0.0
 pybind11==2.13.6
 setuptools==65.5.0
+tensorboard==2.18.0
 torch==2.5.0
 tqdm==4.66.6
 yappi==1.6.10
