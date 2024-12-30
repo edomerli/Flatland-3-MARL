@@ -108,6 +108,7 @@ if __name__ == "__main__":
         wandb.define_metric("play/custom_episodic_reward", step_metric="play/step")
         wandb.define_metric("play/percentage_done", step_metric="play/step")
         wandb.define_metric("play/episode_length", step_metric="play/step")
+        wandb.define_metric("play/percentage_departed", step_metric="play/step")
 
         wandb.define_metric("train/batch")
         wandb.define_metric("train/loss_pi", step_metric="train/batch")

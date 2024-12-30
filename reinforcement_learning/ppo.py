@@ -143,6 +143,7 @@ class PPO:
                 # N.B. cannot use done dict as a reference as the env sets it to True for all agents even if the environment terminated due to max_steps reached!
                 # instead, we have to rely on agent.state
                 percentage_done = sum([1 for agent in self.env.agents if agent.state == TrainState.DONE]) / n_agents
+                percentage_departed = sum([1 for agent in self.env.agents if agent.state >= TrainState.MOVING]) / n_agents
 
                 if self.config.wandb:
                     # log real and custom rewards episodically
@@ -151,6 +152,7 @@ class PPO:
                         "play/custom_episodic_reward": self.custom_rewards_sum,
                         "play/percentage_done": percentage_done,
                         "play/episode_length": self.env._elapsed_steps,
+                        "play/percentage_departed": percentage_departed,
                         "play/step": global_vars.global_step
                     })
 
