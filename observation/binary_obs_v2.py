@@ -61,14 +61,12 @@ class BinaryTreeObsV2(ObservationBuilder):
         observations = super().get_many(handles)
 
         # [DEBUG] uncomment for debugging purposes to see the observations rendered on the env
-        # all_agents_active = True
-        # for agent in self.env.agents:
-        #     if not (TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION):
-        #         all_agents_active = False
-        #         break
-        # if all_agents_active:
-        #     render_env(self.env)
-        #     exit()
+        counter = 0
+        for agent in self.env.agents:
+            if (TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION):
+                counter += 1
+        if counter >= 10:
+            render_env(self.env)
 
         return observations
 
@@ -205,7 +203,8 @@ class BinaryTreeObsV2(ObservationBuilder):
                 queue.append((new_position, first_turn, second_turn, next_dir, depth))
 
         # [DEBUG] uncomment for debugging purposes to see the observations rendered on the env
-        # self.env.dev_obs_dict[agent.handle] = list(visited)
+        if TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION:
+            self.env.dev_obs_dict[agent.handle] = list(visited)
 
         return per_dir_obs
     
