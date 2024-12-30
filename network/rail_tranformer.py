@@ -112,8 +112,6 @@ class RailTranformer(nn.Module):
             for layer in self.head:
                 x = layer(x) + x
 
-        # TODO: dovrei mettere la residual connection anche all'ultimo layer (btw, quelli del paper "skip connections eliminate singularities" la mettono anche all'ultimo!)? 
-        # -> TESTA CON E SENZA! Sono troppo curioso ahahahahha
         x = self.final(x)   
 
         if self.actor_flag:

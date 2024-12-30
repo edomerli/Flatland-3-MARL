@@ -97,8 +97,8 @@ def create_test_env(test_id, env_id):
         'number_of_agents': env_config["n_agents"],
         'malfunction_generator': ParamMalfunctionGen(malfunction_parameters),
         # NOTE: no random_seed for test environments, as the 
-        # flatland-evaluator uses a specific seed (11) for the test environments TODO: dovrei passarglielo se voglio
-        # testare in locale quindi? 
+        # flatland-evaluator uses a specific seed (11) for the test environments 
+        # TODO: dovrei passarglielo se voglio testare in locale
     }
 
     env = RailEnv(**env_args)
