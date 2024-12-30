@@ -7,6 +7,7 @@ from flatland.envs.step_utils.states import TrainState
 from flatland.envs.fast_methods import fast_count_nonzero, fast_argmax
 
 from utils.decision_cells import find_switches_and_switches_neighbors
+from utils.render import render_env
 
 
 class BinaryTreeObs(ObservationBuilder):
@@ -71,7 +72,6 @@ class BinaryTreeObs(ObservationBuilder):
             observation: the observation for the agent
         """
         observation = np.zeros(self.observation_dim)
-        visited = []
         agent = self.env.agents[handle]
 
         # compute the agent's virtual position
@@ -89,7 +89,6 @@ class BinaryTreeObs(ObservationBuilder):
         # the rest of the observation is computed only if the agent is not done!
         if not agent_done:
             # compute current distance and adjust orientation if the next direction is already defined because it's the only possible transition
-            visited.append(agent_virtual_position)
             distance_map = self.env.distance_map.get()
             current_cell_dist = distance_map[handle,
                                              agent_virtual_position[0], agent_virtual_position[1],
@@ -111,11 +110,10 @@ class BinaryTreeObs(ObservationBuilder):
                     if not (np.math.isinf(new_cell_dist) and np.math.isinf(current_cell_dist)):
                         observation[16 + dir_loop] = int(new_cell_dist < current_cell_dist)
 
-                    has_opp_agent, has_same_agent, has_target, has_opp_target, v, min_dist = self._explore(handle,
+                    has_opp_agent, has_same_agent, has_target, has_opp_target, min_dist = self._explore(handle,
                                                                                                            new_position,
                                                                                                            branch_direction,
                                                                                                            distance_map)
-                    visited.append(v)
 
                     # observation[11-14]: for each direction, whether there is a path towards the target (one-hot encoded)
                     if not (np.math.isinf(min_dist) and np.math.isinf(current_cell_dist)):
@@ -160,25 +158,23 @@ class BinaryTreeObs(ObservationBuilder):
         has_same_agent = 0
         has_target = 0
         has_opp_target = 0
-        visited = []
         min_dist = distance_map[handle, new_position[0], new_position[1], new_direction]
 
         # stop exploring (max_depth reached)
         if depth >= self.max_depth:
-            return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
+            return has_opp_agent, has_same_agent, has_target, has_opp_target, min_dist
 
         # we at most explore 100 cells
         cnt = 0
         while cnt < 100:
             cnt += 1
 
-            visited.append(new_position)
             opp_agent = self.env.agent_positions[new_position]
             if opp_agent != -1 and opp_agent != handle:
                 if self.env.agents[opp_agent].direction != new_direction:
                     # agent with opposite direction found, stop exploring
                     has_opp_agent = 1
-                    return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
+                    return has_opp_agent, has_same_agent, has_target, has_opp_target, min_dist
                 else:
                     # agent with the same direction found, stop exploring
                     # NOTE: we consider an agent with the same direction but deadlocked as an agent with opposite direction!
@@ -186,14 +182,14 @@ class BinaryTreeObs(ObservationBuilder):
                         has_opp_agent = 1
                     else:
                         has_same_agent = 1
-                    return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
+                    return has_opp_agent, has_same_agent, has_target, has_opp_target, min_dist
 
             # the switch refers to a switch where the agent *can* take a decision! Not any switch (i.e. maybe only for agents coming from other directions)
             agents_on_switch, _, _, _ = self._on_or_near_switch(new_position, new_direction)
 
             if new_position == self.env.agents[handle].target:
                 has_target = 1
-                return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
+                return has_opp_agent, has_same_agent, has_target, has_opp_target, min_dist
             elif new_position in self.agents_target:
                 has_opp_target = 1
                 # continue exploring though!
@@ -209,25 +205,24 @@ class BinaryTreeObs(ObservationBuilder):
                         [(orientation + dir_loop) % 4 for dir_loop in range(-1, 3)]):
                     # branch the exploration path and aggregate the found information
                     if possible_transitions[dir_loop] == 1:
-                        hoa, hsa, ht, hot, v, m_dist = self._explore(handle,
+                        hoa, hsa, ht, hot, m_dist = self._explore(handle,
                                                                      get_new_position(new_position, dir_loop),
                                                                      dir_loop,
                                                                      distance_map,
                                                                      depth + 1)
-                        visited.append(v)
                         has_opp_agent = max(hoa, has_opp_agent)
                         has_same_agent = max(hsa, has_same_agent)
                         has_target = max(has_target, ht)
                         has_opp_target = max(has_opp_target, hot)
                         min_dist = min(min_dist, m_dist)
-                return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
+                return has_opp_agent, has_same_agent, has_target, has_opp_target, min_dist
             else:
                 new_direction = fast_argmax(possible_transitions)
                 new_position = get_new_position(new_position, new_direction)
 
             min_dist = min(min_dist, distance_map[handle, new_position[0], new_position[1], new_direction])
 
-        return has_opp_agent, has_same_agent, has_target, has_opp_target, visited, min_dist
+        return has_opp_agent, has_same_agent, has_target, has_opp_target, min_dist
     
     def _on_or_near_switch(self, position, direction):
         agent_on_switch = position in self.switches[direction]

@@ -20,7 +20,7 @@ python train.py
 ```
 which takes the following command line arguments:
 ```
-usage: train.py [-h] [--env_size ENV_SIZE] [--network_architecture NETWORK_ARCHITECTURE] [--skip_no_choice_cells] [--normalize_v_targets] [--load_checkpoint_env LOAD_CHECKPOINT_ENV] [--log_video]
+usage: train.py [-h] [--env_size ENV_SIZE] [--network_architecture NETWORK_ARCHITECTURE] [--skip_no_choice_cells] [--normalize_v_targets] [--load_checkpoint_env LOAD_CHECKPOINT_ENV] [--use_obs_v1] [--log_video]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -33,6 +33,8 @@ optional arguments:
                         Whether to normalize the value targets
   --load_checkpoint_env LOAD_CHECKPOINT_ENV
                         The environment size of the checkpoint to load. Must be one of [demo, mini, small, medium, large, huge]. The latest one with the compatible network_architecture will be loaded from the weights folder.
+  --use_obs_v1
+                        Whether to use the binary observation v1
   --log_video           Whether to log videos of the episodes to wandb
 ```
 

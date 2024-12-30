@@ -15,6 +15,7 @@ from network.mlp import MLP
 from reinforcement_learning.actor_critic import ActorCritic
 from env_wrapper.railenv_wrapper import RailEnvWrapper
 from observation.binary_obs import BinaryTreeObs
+from observation.binary_obs_v2 import BinaryTreeObsV2
 from reinforcement_learning.ppo import PPO
 from env_wrapper.skip_no_choice_wrapper import SkipNoChoiceWrapper
 
@@ -27,12 +28,15 @@ if __name__ == "__main__":
     parser.add_argument("--skip_no_choice_cells", help="Whether to skip cells where the agent has no choice", action="store_true")
     parser.add_argument("--normalize_v_targets", help="Whether to normalize the value targets", action="store_true")
     parser.add_argument("--load_checkpoint_env", help="The environment size of the checkpoint to load. Must be one of [demo, mini, small, medium, large, huge]. The latest one with the compatible network_architecture will be loaded from the weights folder.", default="", type=str)
+    parser.add_argument("--use_obs_v1", help="Whether to use the binary observation v1", action="store_true")
     parser.add_argument("--log_video", help="Whether to log videos of the episodes to wandb", action="store_true")
     args = parser.parse_args()
 
     ### OBSERVATION ###
-    TREE_OBS_DEPTH = 2
-    obs_builder = BinaryTreeObs(max_depth=TREE_OBS_DEPTH)
+    if args.use_obs_v1:
+        obs_builder = BinaryTreeObs(max_depth=2)
+    else:
+        obs_builder = BinaryTreeObsV2()
 
     ### CONFIGURATION ###
     TOT_TIMESTEPS = 2**22 if args.env_size != "demo" else 2**20    # approx 4M if not demo, 1M if demo
@@ -45,7 +49,8 @@ if __name__ == "__main__":
         "skip_no_choice_cells": args.skip_no_choice_cells,
 
         # Observation
-        "tree_obs_depth": TREE_OBS_DEPTH,
+        "obs_version": "v1" if args.use_obs_v1 else "v2",
+        "tree_obs_depth": obs_builder.max_depth,
 
         # Timesteps and iterations
         "tot_timesteps": TOT_TIMESTEPS,
@@ -169,8 +174,8 @@ if __name__ == "__main__":
         try:
             directory = list(pathlib.Path("weights/curriculum").iterdir())
             # filter only files containing the "policy" or "value" keyword, the same architecture type and the requested environment size, and get the latest one
-            latest_policy_checkpoint = max(filter(lambda x: f"policy_{config.network_architecture}_{config.load_checkpoint_env}" in str(x), directory), key=os.path.getctime)
-            latest_value_checkpoint = max(filter(lambda x: f"value_{config.network_architecture}_{config.load_checkpoint_env}" in str(x) and config.network_architecture in str(x), directory), key=os.path.getctime)
+            latest_policy_checkpoint = max(filter(lambda x: f"policy_obs{config.obs_version}_{config.network_architecture}_{config.load_checkpoint_env}" in str(x), directory), key=os.path.getctime)
+            latest_value_checkpoint = max(filter(lambda x: f"value_obs{config.obs_version}_{config.network_architecture}_{config.load_checkpoint_env}" in str(x), directory), key=os.path.getctime)
             ppo.load(latest_policy_checkpoint, latest_value_checkpoint)
             print(f"Checkpoint loaded successfully from {latest_policy_checkpoint} and {latest_value_checkpoint}")
             subfolder = "curriculum"
@@ -192,13 +197,13 @@ if __name__ == "__main__":
         os.makedirs("weights/curriculum")
 
     now = datetime.today().strftime('%Y%m%d-%H%M')
-    policy_path = f"weights/{subfolder}/{now}_policy_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
-    value_path = f"weights/{subfolder}/{now}_value_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
+    policy_path = f"weights/{subfolder}/{now}_policy_obs{config.obs_version}_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
+    value_path = f"weights/{subfolder}/{now}_value_obs{config.obs_version}_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.pt"
     ppo.save(policy_path, value_path)
     print(f"Weights saved successfully at {policy_path} and {value_path}!")
 
     # save config as a json file
-    config_path = f"weights/{subfolder}/{now}_config_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.json"
+    config_path = f"weights/{subfolder}/{now}_config_obs{config.obs_version}_{config.network_architecture}_{config.env_size}_{env.number_of_agents}_steps{config.tot_timesteps}_seed{config.seed}.json"
     CONFIG["policy_path"] = policy_path
     CONFIG["value_path"] = value_path
     CONFIG["device"] = config.device.type   # convert device to string for json serialization
