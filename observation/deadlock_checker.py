@@ -2,6 +2,7 @@ from flatland.core.grid.grid4_utils import get_new_position
 from flatland.envs.agent_utils import TrainState
 from flatland.envs.fast_methods import fast_count_nonzero
 
+from utils.render import render_env
 
 class DeadlockChecker:
     def __init__(self, env):
@@ -12,11 +13,13 @@ class DeadlockChecker:
         """
         self.env = env
         self.agent_deadlock = [False] * self.env.number_of_agents
+        # self.has_rendered = False   # [DEBUG] debugging purposes, for rendering deadlocks
         
     def reset(self):
         """Reset the deadlock checker.
         """
         self.agent_deadlock = [False] * self.env.number_of_agents
+        # self.has_rendered = False   # [DEBUG] debugging purposes, for rendering deadlocks
 
     def update_deadlocks(self):
         """Update the deadlocks in the environment.
@@ -41,6 +44,18 @@ class DeadlockChecker:
         for agent in self.env.agents:
             if TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION and not self.can_move[agent.handle]:
                 self.agent_deadlock[agent.handle] = True
+
+        # [DEBUG] render deadlocks
+        # num_deadlocks = sum(self.agent_deadlock)
+        # if num_deadlocks % 2 == 1 and not self.has_rendered:
+        #     for agent in self.env.agents:
+        #         if self.agent_deadlock[agent.handle]:    
+        #             self.env.dev_obs_dict[agent.handle] = [agent.position]
+        #         else:
+        #             self.env.dev_obs_dict[agent.handle] = []
+        #     render_env(self.env)
+        #     self.has_rendered = True
+            
 
     def _check_and_build_graph(self, agent, active_agents_positions):
         possible_transitions = self.env.rail.get_transitions(*agent.position, agent.direction)
