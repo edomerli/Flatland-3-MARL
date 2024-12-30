@@ -87,7 +87,9 @@ class BinaryTreeObsV2(ObservationBuilder):
 
         # the rest of the observation is computed only if the agent is not done!
         if agent_done:
-            return np.full(self.observation_dim, -1)
+            observation = np.full(self.observation_dim, 0)
+            observation[agent.state] = 1
+            return  observation
         
         ### AGENT and CURRENT POSITION information
         # agent_attr_obs[0-6]: the agent's state (one-hot encoded)
@@ -123,9 +125,6 @@ class BinaryTreeObsV2(ObservationBuilder):
         if num_transitions == 1:
             orientation = fast_argmax(possible_transitions)
 
-        # get set of immissions, i.e. the directions from which OTHER agents can come from
-        immissions = self._get_immissions(position, possible_transitions)
-
         # initialize the queue with the first neighboring cells
         queue = []  # queue holds node made of (position, first_turn, second_turn, new_direction, depth)
         for turn_dir, new_direction in enumerate([(orientation + turn_dir) % 4 for turn_dir in range(-1, 3)]):
@@ -137,13 +136,6 @@ class BinaryTreeObsV2(ObservationBuilder):
                     per_dir_obs[turn_dir][1] = 1
                     per_dir_obs[turn_dir][2] = int(new_pos_dist < current_cell_dist)
                 queue.append((new_position, turn_dir, -999, new_direction, 1))
-            elif immissions[new_direction]:
-                per_dir_obs[turn_dir][0] = 0
-                per_dir_obs[turn_dir][1] = 0
-                per_dir_obs[turn_dir][2] = 0
-                queue.append((new_position, turn_dir, -999, new_direction, 1))
-            else:
-                per_dir_obs[turn_dir] = np.full(4*self.branch_dim, -1)
 
         while queue:
             position, first_turn, second_turn, direction, depth = queue.pop(0)
@@ -192,12 +184,11 @@ class BinaryTreeObsV2(ObservationBuilder):
                 # continue exploring though!
 
             # explore next cell/cells
-            if position in self.all_switches:
-                # I reached a switch, NO MATTER whether it's a decision switch or not for the current agent!
+            if position in self.switches[direction]:
+                # I reached a switch
                 # start next depth explorations if haven't reached max depth
                 if depth == self.max_depth:
                     continue    # don't explore further
-                immissions = self._get_immissions(position, possible_transitions)
                 for turn_dir, new_direction in enumerate([(direction + turn_dir) % 4 for turn_dir in range(-1, 2)]):    # NOTE: only 3 directions because we don't want to look backwards here
                     new_position = get_new_position(position, new_direction)
                     base_idx = 10 + 10 * turn_dir
@@ -208,13 +199,6 @@ class BinaryTreeObsV2(ObservationBuilder):
                             per_dir_obs[first_turn][base_idx + 1] = 1
                             per_dir_obs[first_turn][base_idx + 2] = int(new_pos_dist < current_cell_dist)
                         queue.append((new_position, first_turn, turn_dir, new_direction, depth + 1))
-                    elif immissions[new_direction]:
-                        per_dir_obs[first_turn][base_idx] = 0
-                        per_dir_obs[first_turn][base_idx + 1] = 0
-                        per_dir_obs[first_turn][base_idx + 2] = 0
-                        queue.append((new_position, first_turn, turn_dir, new_direction, depth + 1))
-                    else:
-                        per_dir_obs[first_turn][base_idx:base_idx+10] = -1
             else:
                 # only one possible transition, continue in the same direction, don't increase depth
                 new_position = get_new_position(position, next_dir)
@@ -248,13 +232,3 @@ class BinaryTreeObsV2(ObservationBuilder):
             return False
         transition_type = self.env.rail.get_full_transitions(row, col)
         return transition_type != 0
-    
-    def _get_immissions(self, position, possible_transitions):
-        immissions = [0, 0, 0, 0]
-        for dir in range(4):
-            transits = self.env.rail.get_transitions(*position, dir)
-            for d in range(4):
-                immissions[d] |= transits[d]
-        for d in range(4):
-            immissions[dir] &= possible_transitions[dir]
-        return immissions
