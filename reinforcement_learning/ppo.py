@@ -90,8 +90,6 @@ class PPO:
 
         for step in range(self.iterations_timesteps):
             collection_timer.start()
-            if step % (self.iterations_timesteps//10) == 0:
-                print(f"Timesteps collected: {step}/{self.iterations_timesteps}")
 
             # update global step count
             global_vars.global_step += 1
@@ -137,7 +135,6 @@ class PPO:
             next_done = done["__all__"]
 
             if next_done:
-                # print(f"Episode done at step {self.env._elapsed_steps}/{self.env._max_episode_steps}")
                 normalized_reward = self.env.normalized_reward(reward)
 
                 # N.B. cannot use done dict as a reference as the env sets it to True for all agents even if the environment terminated due to max_steps reached!
