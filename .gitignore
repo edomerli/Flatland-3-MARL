@@ -2,10 +2,8 @@ TODO.md
 
 __pycache__/
 wandb/
+report/
 
 yappi_func_stats.txt
 yappi_threads_stats.txt
 yappi_func_stats_tsub_sorted.txt
-
-report.tex
-resources.bib
