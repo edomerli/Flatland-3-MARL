@@ -47,9 +47,11 @@ class PPO:
             if self.config.profiling:
                 yappi.start()
 
+            print("Collecting trajectories...")
             # next_obs and next_done are returned such that they can be used as the initial state for the next iteration
             observations, actions, log_probs, value_targets, advantages, action_required, next_obs, next_done = self._collect_trajectories(next_obs, next_done, initial_info_dict)
 
+            print("Training...")
             self._train(observations, actions, log_probs, value_targets, advantages, action_required)
 
             if self.config.profiling:
