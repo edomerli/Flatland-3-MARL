@@ -60,7 +60,7 @@ if __name__ == "__main__":
         # Network architecture
         "network_architecture": args.network_architecture,
         "state_size": obs_builder.observation_dim,
-        "action_size": 4,   # we choose to ignore the "DO_NOTHING" action (since semantically superfluous), and work only with "MOVE_LEFT", "MOVE_FORWARD", "MOVE_RIGHT" and "STOP"
+        "action_size": 5,   # we choose to ignore the "DO_NOTHING" action (since semantically superfluous), and work only with "MOVE_LEFT", "MOVE_FORWARD", "MOVE_RIGHT" and "STOP"
         "hidden_size": 128,
         "num_layers": 3,
         "load_checkpoint_env": args.load_checkpoint_env,

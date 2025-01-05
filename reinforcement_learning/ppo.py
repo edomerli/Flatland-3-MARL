@@ -118,7 +118,8 @@ class PPO:
 
             env_step_timer.start()
             # map the action to the agent's action space, but N.B. only for the agents that are required to act!
-            action_agent = action + action_required[step]  # mask the action with action_required, 0 == RailEnvActions.DO_NOTHING
+            # action_agent = action + action_required[step]  # mask the action with action_required, 0 == RailEnvActions.DO_NOTHING
+            action_agent = action # TODO: just a test, reintroduce the line above
             next_obs, reward, done, info = self.env.step(tensor_to_dict(action_agent))
             actions_count += torch.bincount(action_agent.int(), minlength=self.config.action_size+1)
             env_step_timer.stop()
