@@ -39,7 +39,7 @@ if __name__ == "__main__":
         obs_builder = BinaryTreeObsV2()
 
     ### CONFIGURATION ###
-    TOT_TIMESTEPS = 2**22 if args.env_size != "demo" else 2**20    # approx 4M if not demo, 1M if demo
+    TOT_TIMESTEPS = 2**22   # approx 4M
     ITER_TIMESTEPS = 2**10    # approx 1K
     NUM_ITERATIONS = TOT_TIMESTEPS // ITER_TIMESTEPS
 
