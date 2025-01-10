@@ -21,7 +21,7 @@ def find_switches_and_switches_neighbors(rail_env: RailEnv):
     switches = {dir: [] for dir in range(4)}
     for h in range(rail_env.height):
         for w in range(rail_env.width):
-            pos = (w, h)
+            pos = (h, w)
             for dir in range(4):
                 possible_transitions = rail_env.rail.get_transitions(*pos, dir)
                 num_transitions = fast_count_nonzero(possible_transitions)
@@ -36,7 +36,7 @@ def find_switches_and_switches_neighbors(rail_env: RailEnv):
     switches_neighbors = {dir: [] for dir in range(4)}
     for h in range(rail_env.height):
         for w in range(rail_env.width):
-            pos = (w, h)
+            pos = (h, w)
             for dir in range(4):
                 possible_transitions = rail_env.rail.get_transitions(*pos, dir)
                 # look one step forward in each direction
