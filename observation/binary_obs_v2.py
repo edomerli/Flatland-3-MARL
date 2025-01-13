@@ -55,7 +55,7 @@ class BinaryTreeObsV2(ObservationBuilder):
         self.location_has_agent = {}
 
         for _agent in self.env.agents:
-            # if _agent.state == TrainState.READY_TO_DEPART or TrainState.MOVING <= _agent.state <= TrainState.MALFUNCTION: # TODO: reintroduce, just a test
+            # if _agent.state == TrainState.READY_TO_DEPART or TrainState.MOVING <= _agent.state <= TrainState.MALFUNCTION: # reintroduce if you want to consider agents that are ready to depart as well as moving agents
             if TrainState.MOVING <= _agent.state <= TrainState.MALFUNCTION:
                 self.location_has_agent[_agent.position] = _agent.handle
 

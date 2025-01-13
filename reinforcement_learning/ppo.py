@@ -117,9 +117,13 @@ class PPO:
 
 
             env_step_timer.start()
-            # map the action to the agent's action space, but N.B. only for the agents that are required to act!
-            # action_agent = action + action_required[step]  # mask the action with action_required, 0 == RailEnvActions.DO_NOTHING
-            action_agent = action # TODO: just a test, reintroduce the line above
+            if self.config.action_size == 4:
+                # map the action to the agent's action space, but N.B. only for the agents that are required to act!
+                action_agent = action + action_required[step]  # mask the action with action_required, 0 == RailEnvActions.DO_NOTHING
+            elif self.config.action_size == 5:
+                action_agent = action
+            else:
+                raise ValueError("Invalid action size, must be 4 or 5")
             next_obs, reward, done, info = self.env.step(tensor_to_dict(action_agent))
             actions_count += torch.bincount(action_agent.int(), minlength=self.config.action_size+1)
             env_step_timer.stop()
@@ -227,8 +231,7 @@ class PPO:
         n_datapoints = actions_required.sum(-1).nonzero().size(0)
         print(f"Number of datapoints with at least one agent that is required to act: {n_datapoints}/{self.iterations_timesteps}")
 
-        # TODO: introduce or remove, might be useful in env with more agents
-        # keep only the datapoints with at least one agent that is required to act
+        # reintroduce if you want to keep only the datapoints with at least one agent that is required to act, you have to uncomment also all the code with (*) below
         # selected_datapoints = actions_required.sum(-1).nonzero().squeeze()
         # train_observations = observations[selected_datapoints]
         # train_actions = actions[selected_datapoints]
@@ -243,7 +246,7 @@ class PPO:
 
         self.actor_critic.train()   # set the actor_critic to training mode
         epoch_indices = np.arange(self.iterations_timesteps)
-        # TODO: introduce or remove, might be useful in env with more agents
+        # (*)
         # epoch_indices = np.arange(n_datapoints)
         # # round the number of datapoints to the nearest multiple of the batch size
         # training_datapoints = n_datapoints // self.config.batch_size * self.config.batch_size
@@ -251,6 +254,7 @@ class PPO:
 
         for epoch in tqdm(range(self.config.epochs)):
             np.random.shuffle(epoch_indices)
+            # (*)
             # for start in range(0, training_datapoints, self.config.batch_size):
             for start in range(0, self.iterations_timesteps, self.config.batch_size):
                 end = start + self.config.batch_size
@@ -263,7 +267,7 @@ class PPO:
                 batch_advantages = advantages[batch_indices]
                 batch_actions_required = actions_required[batch_indices]
 
-                # TODO: introduce or remove
+                # (*)
                 # batch_observations = train_observations[batch_indices]
                 # batch_actions = train_actions[batch_indices]
                 # batch_log_probs = train_log_probs[batch_indices]
