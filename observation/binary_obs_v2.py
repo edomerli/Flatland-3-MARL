@@ -66,7 +66,7 @@ class BinaryTreeObsV2(ObservationBuilder):
         # for agent in self.env.agents:
         #     if (TrainState.MOVING <= agent.state <= TrainState.MALFUNCTION):
         #         counter += 1
-        # if counter >= len(self.env.agents)//2:
+        # if counter >= 9: #>= len(self.env.agents)//2:
         #     render_env(self.env)
 
         return observations

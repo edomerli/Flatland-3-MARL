@@ -19,5 +19,5 @@ def render_env(env, wait=True):
     image = env_renderer.get_image()
     pil_image = PIL.Image.fromarray(image)
     clear_output(wait=wait)
-    # display(pil_image)
     pil_image.show()
+    # pil_image.save("image.png")   # uncomment this line to save the image
