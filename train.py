@@ -84,7 +84,7 @@ if __name__ == "__main__":
         # Logging
         "batch_log_frequency": 10,    # how often to log batch stats
         "log_video": args.log_video,
-        "episode_video_frequency": 100,
+        "episode_video_frequency": 10,
 
         # Wandb
         "wandb": True,
