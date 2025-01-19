@@ -26,7 +26,7 @@ def create_train_env(env_size):
     The environment is created using the configurations in the train_configs.csv file.
 
     Args:
-        env_size (str): The size of the environment to create. Must be one of [demo, mini, small, medium, large, huge]
+        env_size (str): The size of the environment to create. Must be one of [demo, mini, small, medium, large]
 
     Returns:
         env: the RailEnv environment
