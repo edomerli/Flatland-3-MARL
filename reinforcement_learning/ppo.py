@@ -133,7 +133,7 @@ class PPO:
             reward_timer.start()
             custom_reward = self.env.custom_reward(done, old_info, info)
             old_info = info
-            custom_rewards[step] = custom_reward
+            custom_rewards[step] = self.env.normalized_reward(reward) # custom_reward # TODO: changed just for the test "custom vs true reward", change back to custom_reward
             self.custom_rewards_sum += custom_reward
             reward_timer.stop()
 
