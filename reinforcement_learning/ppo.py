@@ -131,15 +131,7 @@ class PPO:
 
             # compute custom reward and update old_info
             reward_timer.start()
-
-            # custom vs true reward test, TODO: revert change
-            next_done = done["__all__"]
-            if next_done:
-                custom_reward = self.env.normalized_reward(reward)
-            else:
-                custom_reward = 0.0
-            # custom_reward = self.env.custom_reward(done, old_info, info)
-            
+            custom_reward = self.env.custom_reward(done, old_info, info)
             old_info = info
             custom_rewards[step] = custom_reward
             self.custom_rewards_sum += custom_reward
