@@ -72,6 +72,40 @@ class BinaryTreeObsV2(ObservationBuilder):
         return observations
 
     def get(self, handle: int = 0):
+        """Returns the observation for the agent with the given handle.
+
+        An observation is defined as following:
+        agent_attributes component
+        - observation[0-6]: the agent's state (one-hot encoded)
+        - observation[7-10]: the agent's speed (one-hot encoded)
+        - observation[11]: whether the agent is deadlocked
+        - observation[12]: whether the agent is on a switch
+        - observation[13]: whether the agent is near a switch
+        - observation[14-53]: left branch components
+        - observation[54-93]: straight branch components
+        - observation[94-133]: right branch components
+        - observation[134-173]: back branch components
+        
+        each branch component is composed of 4 subcomponents, one for each depth two direction:
+        - branch_obs[0]: whether there is a transition in that direction
+        - branch_obs[1]: whether there is a path to the target in that direction
+        - branch_obs[2]: whether the path in that direction is the shortest path to the target
+        - branch_obs[3]: whether there is an agent going in the opposite direction along the path
+        - branch_obs[4]: whether there is an agent going in the same direction along the path
+        - branch_obs[5]: if there is a same-direction agent, whether the other agent is faster or equally fast to our agent
+        - branch_obs[6]: whether the other agent is in deadlock
+        - branch_obs[7]: whether the other agent is ready to depart
+        - branch_obs[8]: whether the other agent is malfunctioning
+        - branch_obs[9]: whether the agent's target is in that direction
+
+
+        Args:
+            handle (int, optional): the agent's handle
+
+        Returns:
+            np.ndarray: the observation for the agent with the given handle
+        """
+
         agent_attr_obs = np.zeros(self.agent_attr_dim)
         agent = self.env.agents[handle]
 

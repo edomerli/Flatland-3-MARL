@@ -20,6 +20,9 @@ class RecorderWrapper():
 
     def step(self, action):
         """Overrides env.step() to record episodes as videos in wandb, before forwarding the outputs of the call to the wrapped environment.
+
+        Args:
+            action (int): the action to take in the environment
         """
         obs, reward, done_dict, info = self.env.step(action)
         done = done_dict["__all__"]
