@@ -1,0 +1,8 @@
+{
+    "challenge_id": "flatland-3",
+    "grader_id": "flatland-3",
+    "authors": ["Edoardo Merli"],
+    "description": "Submission from code at https://github.com/edomerli/Flatland-3-MARL",
+    "debug": false,
+    "tags": "RL"
+}
