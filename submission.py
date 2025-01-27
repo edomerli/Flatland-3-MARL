@@ -1,5 +1,5 @@
 # This is the file run on AIcrowd's servers as the submission.
-
+import argparse
 from argparse import Namespace
 import torch
 import torch.nn as nn
@@ -16,16 +16,21 @@ from observation.binary_obs_v2 import BinaryTreeObsV2
 from network.mlp import MLP
 from network.rail_tranformer import RailTranformer
 from utils.conversions import dict_to_tensor, tensor_to_dict
-
-# os.environ["AICROWD_TESTS_FOLDER"] = "env_configs"
-remote_client = FlatlandRemoteClient()
+from utils.seeding import seed_everything
 
 ### ARGS ###
-args = {
-    "network_architecture": "MLP",     # either "MLP" or "RailTransformer"
-    "obs_version": "v2",        # either "v1" or "v2"
-}
-args = Namespace(**args)
+parser = argparse.ArgumentParser()
+parser.add_argument("--network_architecture", type=str, default="MLP", help="either 'MLP' or 'RailTransformer'")
+parser.add_argument("--obs_version", type=str, default="v2", help="either 'v1' or 'v2'")
+parser.add_argument("--remote", action="store_true", help="whether the code is being run remotely as a submission to AIcrowd. If set to true, doesn't set the AICROWD_TESTS_FOLDER environment variable.")
+
+args = parser.parse_args()
+print(args.remote)
+
+if not args.remote:
+    os.environ["AICROWD_TESTS_FOLDER"] = "env_configs/test"
+
+remote_client = FlatlandRemoteClient()
 
 ### OBSERVATION ###
 if args.obs_version == "v1":
@@ -67,6 +72,10 @@ while True:
         """
         print("[INFO] DONE ALL, BREAKING")
         break
+
+    ### SEED ###
+    print(f"[INFO] Setting seed : {remote_client.env.random_seed}, same as remote_client's env")
+    seed_everything(remote_client.env.random_seed)
 
     ### WRAPPERS ###
     # BUG FIX: the number of agents is not set in the env, so we need to set it manually
@@ -112,7 +121,7 @@ while True:
         # filter only files containing the "policy" or "value" keyword, the same architecture type and the requested environment size, and get the latest one
         latest_policy_checkpoint = max(filter(lambda x: f"policy_obs{args.obs_version}_{args.network_architecture}_{env_size}" in str(x), directory), key=os.path.getctime)
         policy_network.load_state_dict(torch.load(latest_policy_checkpoint, map_location=device, weights_only=True))
-        print(f"Policy network checkpoint loaded successfully from {latest_policy_checkpoint}.")
+        print(f"[INFO] Policy network checkpoint loaded successfully from {latest_policy_checkpoint}.")
     except:
         raise ValueError(f"Unable to load checkpoint! Folder: weights/{recipe}, Architecture: {args.network_architecture}")
 
