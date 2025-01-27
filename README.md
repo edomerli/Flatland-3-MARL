@@ -49,7 +49,7 @@ We explain how to do so in this section. You will run the evaluator in a termina
 
 ### Terminal 1: evaluator
 #### Generate the test cases
-First, generate the test cases with the same configuration as [Flatland 3 challenge round 2](https://flatland.aicrowd.com/challenges/flatland3/envconfig.html) using the command below. The generation may take several minutes.
+First, generate the test cases with the same configuration as [Flatland 3 challenge round 2](https://flatland.aicrowd.com/challenges/flatland3/envconfig.html) using the command below. The list of environment configurations used for testing is at env_configs/test/metadata.csv and we chose random seeds for generation as the ones used by the evaluator are not provided (even though the evaluator will always use seed 1001 for effectively running the generated environments). The generation may take several minutes.
 
 ```
 python generate_test_cases.py
