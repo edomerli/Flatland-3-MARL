@@ -2,7 +2,7 @@ TODO.md
 
 __pycache__/
 wandb/
-report/
+env_configs/Test_*
 
 yappi_func_stats.txt
 yappi_threads_stats.txt
