@@ -27,7 +27,7 @@ if __name__ == "__main__":
         "malfunction_interval",
         "speed_ratios",
     ]
-    PATH = "env_configs"
+    PATH = "env_configs/test"
     parameters_flatland = pd.read_csv(f"{PATH}/metadata.csv")
     parameters_flatland[eval_list] = parameters_flatland[eval_list].applymap(
         lambda x: eval(str(x))
