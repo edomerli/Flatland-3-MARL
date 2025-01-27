@@ -1,7 +1,7 @@
 from flatland.core.grid.grid4_utils import get_new_position
 from flatland.envs.agent_utils import TrainState
-from flatland.envs.fast_methods import fast_count_nonzero
 
+from utils.fast_methods import fast_count_nonzero
 from utils.render import render_env
 
 class DeadlockChecker:

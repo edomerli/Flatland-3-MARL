@@ -17,6 +17,7 @@ from network.mlp import MLP
 from network.rail_tranformer import RailTranformer
 from utils.conversions import dict_to_tensor, tensor_to_dict
 
+os.environ["AICROWD_TESTS_FOLDER"] = "env_configs"
 remote_client = FlatlandRemoteClient()
 
 ### ARGS ###
@@ -27,10 +28,12 @@ args = {
 args = Namespace(**args)
 
 ### OBSERVATION ###
-if args.use_obs_v1:
+if args.obs_version == "v1":
     obs_builder = BinaryTreeObs(max_depth=2)
-else:
+elif args.obs_version == "v2":
     obs_builder = BinaryTreeObsV2()
+else:
+    raise ValueError("Invalid observation version. Must be one of ['v1', 'v2']")
 
 ### CONFIG ###
 config = {
@@ -43,6 +46,7 @@ config = {
     # misc
     "normalize_v_targets": False,
 }
+config = Namespace(**config)
 
 ### EVALUATION LOOP ###
 episode = 0
@@ -65,13 +69,15 @@ while True:
         break
 
     ### WRAPPERS ###
+    # BUG FIX: the number of agents is not set in the env, so we need to set it manually
+    remote_client.env.number_of_agents = len(remote_client.env.agents)
     # assign the right obs_builder
     remote_client.env.obs_builder = obs_builder
     remote_client.env.obs_builder.set_env(remote_client.env)
     # wrap the remote client's env 
     remote_client.env = TestRailEnvWrapper(remote_client.env)
     # reset the components of the env, i.e. the deadlock checker and the obs_builder, and "connect" them together
-    remote_client.reset_components()
+    remote_client.env.reset_components()
     # recompute the obs using the actual obs_builder
     obs, _, _, info = remote_client.env_step({})
 
@@ -111,12 +117,13 @@ while True:
         raise ValueError(f"Unable to load checkpoint! Folder: weights/{recipe}, Architecture: {args.network_architecture}")
 
     ### EPISODE LOOP ###
+    step = 0
     while True:
         try:
             # if all agents are waiting, i.e. possibly at the start of the episode, 
             # or if all agents are either done or deadlocked, i.e. possibly at the end of the episode,
             # then DON"T use the model to get the action but do a no-op step
-            if remote_client.env.all_agents_waiting() or remote_client.env.all_agents_done_or_deadlocked():
+            if remote_client.env.all_agents_waiting() or remote_client.env.all_done_or_deadlock():
                 try:
                     obs, all_rewards, done, info = remote_client.env_step({})
                 except:
@@ -129,7 +136,7 @@ while True:
                 action = policy_network(obs).sample()
                 # apply the agents_mask to the actions, so that the agents that are not required to act will have their action set to 0
                 action = action * action_mask
-                action_dict = tensor_to_dict(action)
+                action_dict = tensor_to_dict(torch.squeeze(action))
 
                 try:
                     obs, all_rewards, done, info = remote_client.env_step(action_dict)
@@ -148,6 +155,7 @@ while True:
             # The whole evaluation will be stopped if there are 10 consecutive timeouts.
             print("[ERR] Timeout! Will skip this episode and go to the next.", err)
             break
+        step += 1
 
 print("Evaluation complete!")
 print(remote_client.submit())

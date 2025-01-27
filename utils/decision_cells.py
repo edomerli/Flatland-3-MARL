@@ -1,6 +1,7 @@
 from flatland.envs.rail_env import RailEnv
 from flatland.core.grid.grid4_utils import get_new_position
-from flatland.envs.fast_methods import fast_count_nonzero
+
+from utils.fast_methods import fast_count_nonzero
 
 def find_switches_and_switches_neighbors(rail_env: RailEnv):
     """
