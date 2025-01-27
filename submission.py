@@ -17,7 +17,7 @@ from network.mlp import MLP
 from network.rail_tranformer import RailTranformer
 from utils.conversions import dict_to_tensor, tensor_to_dict
 
-os.environ["AICROWD_TESTS_FOLDER"] = "env_configs"
+# os.environ["AICROWD_TESTS_FOLDER"] = "env_configs"
 remote_client = FlatlandRemoteClient()
 
 ### ARGS ###
