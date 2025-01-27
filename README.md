@@ -1,6 +1,4 @@
 # 🚂 Flatland-3-MARL
----
-
 <p align="center">
   <img src="https://i.imgur.com/6jOtX8u.gif">
 </p>
