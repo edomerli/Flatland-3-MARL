@@ -58,7 +58,9 @@ if __name__ == "__main__":
             line_generator=sparse_line_generator(env_config["speed_ratios"]),
             number_of_agents=env_config["n_agents"],
             malfunction_generator=ParamMalfunctionGen(malfunction_parameters),
-            # NOTE: no random seed as the env loader used by the evaluator will always use the seed 1001 no matter what!
+            # NOTE: the random seed set here is the one used to **create** the env. 
+            # At test time, the env loader used by the evaluator will always use the seed 1001 no matter what!
+            random_seed=env_config["random_seed"],
         )
         env.reset()
         Level_idx = env_config["env_id"]
